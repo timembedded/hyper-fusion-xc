@@ -27512,7 +27512,7 @@
 	)
 	(hierarchical_label "DDR_A12"
 		(shape output)
-		(at 288.29 139.7 0)
+		(at 288.29 172.72 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -27578,7 +27578,7 @@
 	)
 	(hierarchical_label "DDR_DQ14"
 		(shape bidirectional)
-		(at 288.29 231.14 0)
+		(at 288.29 243.84 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -27721,7 +27721,7 @@
 	)
 	(hierarchical_label "DDR_DQ11"
 		(shape bidirectional)
-		(at 288.29 208.28 0)
+		(at 288.29 236.22 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -27809,7 +27809,7 @@
 	)
 	(hierarchical_label "DDR_DQ0"
 		(shape bidirectional)
-		(at 288.29 175.26 0)
+		(at 288.29 254 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -27919,7 +27919,7 @@
 	)
 	(hierarchical_label "~{DDR_CAS}"
 		(shape output)
-		(at 288.29 210.82 0)
+		(at 288.29 165.1 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28018,7 +28018,7 @@
 	)
 	(hierarchical_label "DDR_A8"
 		(shape output)
-		(at 288.29 223.52 0)
+		(at 288.29 162.56 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28183,7 +28183,7 @@
 	)
 	(hierarchical_label "~{DDR_WE}"
 		(shape output)
-		(at 288.29 157.48 0)
+		(at 288.29 200.66 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28304,7 +28304,7 @@
 	)
 	(hierarchical_label "DDR_DQ13"
 		(shape bidirectional)
-		(at 288.29 200.66 0)
+		(at 288.29 238.76 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28337,7 +28337,7 @@
 	)
 	(hierarchical_label "DDR_A2"
 		(shape output)
-		(at 288.29 226.06 0)
+		(at 288.29 149.86 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28359,7 +28359,7 @@
 	)
 	(hierarchical_label "DDR_DQ7"
 		(shape bidirectional)
-		(at 288.29 172.72 0)
+		(at 288.29 231.14 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28436,7 +28436,7 @@
 	)
 	(hierarchical_label "~{DDR_CS}"
 		(shape output)
-		(at 288.29 233.68 0)
+		(at 288.29 160.02 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28491,7 +28491,7 @@
 	)
 	(hierarchical_label "DDR_DQ5"
 		(shape bidirectional)
-		(at 288.29 241.3 0)
+		(at 288.29 223.52 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28502,7 +28502,7 @@
 	)
 	(hierarchical_label "DDR_BA0"
 		(shape output)
-		(at 288.29 248.92 0)
+		(at 288.29 167.64 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28568,7 +28568,7 @@
 	)
 	(hierarchical_label "DDR_DQ9"
 		(shape bidirectional)
-		(at 288.29 218.44 0)
+		(at 288.29 210.82 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28722,7 +28722,7 @@
 	)
 	(hierarchical_label "DDR_CKE"
 		(shape output)
-		(at 288.29 165.1 0)
+		(at 288.29 182.88 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28931,7 +28931,7 @@
 	)
 	(hierarchical_label "DDR_DQ3"
 		(shape bidirectional)
-		(at 288.29 152.4 0)
+		(at 288.29 220.98 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -28953,7 +28953,7 @@
 	)
 	(hierarchical_label "DDR_BA1"
 		(shape output)
-		(at 288.29 215.9 0)
+		(at 288.29 213.36 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29217,7 +29217,7 @@
 	)
 	(hierarchical_label "DDR_DQ15"
 		(shape bidirectional)
-		(at 288.29 220.98 0)
+		(at 288.29 241.3 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29261,7 +29261,7 @@
 	)
 	(hierarchical_label "DDR_DQ6"
 		(shape bidirectional)
-		(at 288.29 180.34 0)
+		(at 288.29 233.68 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29294,7 +29294,7 @@
 	)
 	(hierarchical_label "DDR_A3"
 		(shape output)
-		(at 288.29 243.84 0)
+		(at 288.29 157.48 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29305,7 +29305,7 @@
 	)
 	(hierarchical_label "DDR_A1"
 		(shape output)
-		(at 288.29 228.6 0)
+		(at 288.29 154.94 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29382,7 +29382,7 @@
 	)
 	(hierarchical_label "DDR_A9"
 		(shape output)
-		(at 288.29 154.94 0)
+		(at 288.29 170.18 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29459,7 +29459,7 @@
 	)
 	(hierarchical_label "DDR_DQ1"
 		(shape bidirectional)
-		(at 288.29 167.64 0)
+		(at 288.29 226.06 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29503,7 +29503,7 @@
 	)
 	(hierarchical_label "DDR_DQ4"
 		(shape bidirectional)
-		(at 288.29 149.86 0)
+		(at 288.29 228.6 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29591,7 +29591,7 @@
 	)
 	(hierarchical_label "DDR_DQS1"
 		(shape output)
-		(at 288.29 177.8 0)
+		(at 288.29 205.74 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29679,7 +29679,7 @@
 	)
 	(hierarchical_label "DDR_A0"
 		(shape output)
-		(at 288.29 246.38 0)
+		(at 288.29 177.8 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29701,7 +29701,7 @@
 	)
 	(hierarchical_label "DDR_A5"
 		(shape output)
-		(at 288.29 170.18 0)
+		(at 288.29 139.7 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29723,7 +29723,7 @@
 	)
 	(hierarchical_label "DDR_DM1"
 		(shape output)
-		(at 288.29 254 0)
+		(at 288.29 246.38 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29877,7 +29877,7 @@
 	)
 	(hierarchical_label "DDR_A13"
 		(shape input)
-		(at 288.29 182.88 0)
+		(at 288.29 175.26 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -29987,7 +29987,7 @@
 	)
 	(hierarchical_label "DDR_DQ2"
 		(shape bidirectional)
-		(at 288.29 162.56 0)
+		(at 288.29 251.46 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -30053,7 +30053,7 @@
 	)
 	(hierarchical_label "DDR_DQ8"
 		(shape bidirectional)
-		(at 288.29 203.2 0)
+		(at 288.29 208.28 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -30086,7 +30086,7 @@
 	)
 	(hierarchical_label "~{DDR_RAS}"
 		(shape output)
-		(at 288.29 236.22 0)
+		(at 288.29 180.34 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -30097,7 +30097,7 @@
 	)
 	(hierarchical_label "DDR_A10"
 		(shape output)
-		(at 288.29 238.76 0)
+		(at 288.29 152.4 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -30119,7 +30119,7 @@
 	)
 	(hierarchical_label "DDR_DQ12"
 		(shape bidirectional)
-		(at 288.29 205.74 0)
+		(at 288.29 215.9 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -30185,7 +30185,7 @@
 	)
 	(hierarchical_label "DDR_DQS0"
 		(shape output)
-		(at 288.29 160.02 0)
+		(at 288.29 248.92 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -30207,7 +30207,7 @@
 	)
 	(hierarchical_label "DDR_DQ10"
 		(shape bidirectional)
-		(at 288.29 213.36 0)
+		(at 288.29 218.44 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -30218,7 +30218,7 @@
 	)
 	(hierarchical_label "DDR_DM0"
 		(shape output)
-		(at 288.29 251.46 0)
+		(at 288.29 203.2 0)
 		(effects
 			(font
 				(size 1.27 1.27)
