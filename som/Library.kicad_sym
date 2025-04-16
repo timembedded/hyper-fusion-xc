@@ -35817,7 +35817,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "MT46H32M16LFBF-5 IT:C"
+		(property "Datasheet" "https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/402/MT46H32M16LF%2CMT46H16M32LF%28LG%29.pdf"
 			(at 32.258 -30.988 0)
 			(effects
 				(font
