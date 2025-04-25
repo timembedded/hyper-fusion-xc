@@ -19273,6 +19273,28 @@
 		)
 		(uuid "0b35bfbf-2a2e-4fd5-ba94-c382ec307707")
 	)
+	(hierarchical_label "B3-IO13n"
+		(shape passive)
+		(at 405.13 273.05 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0bce45d5-e980-4b0f-86f8-ecce5ad0c9fc")
+	)
+	(hierarchical_label "B3-IO9"
+		(shape passive)
+		(at 422.91 270.51 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "0d5c79fc-f431-4cfc-aa6b-63cfb6e8aa99")
+	)
 	(hierarchical_label "FL_D2"
 		(shape passive)
 		(at 309.88 91.44 180)
@@ -19327,6 +19349,17 @@
 			(justify left)
 		)
 		(uuid "13fc8b2c-662b-4039-bea8-f95d0c4bba49")
+	)
+	(hierarchical_label "B3-IO3"
+		(shape passive)
+		(at 422.91 250.19 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "1487f554-2e5b-4f3e-bcad-c4938653b854")
 	)
 	(hierarchical_label "DDR_DQ6"
 		(shape bidirectional)
@@ -19504,6 +19537,17 @@
 		)
 		(uuid "22d593e7-7a26-482e-810e-40da36fb0896")
 	)
+	(hierarchical_label "B3-IO1n"
+		(shape passive)
+		(at 422.91 255.27 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "2369652a-d511-41c3-9ea0-8ebb357ca006")
+	)
 	(hierarchical_label "~{DDR_CLK}"
 		(shape input)
 		(at 440.69 105.41 180)
@@ -19636,6 +19680,17 @@
 		)
 		(uuid "3060d2fe-a0de-430a-b90e-6143463e35eb")
 	)
+	(hierarchical_label "B3-IO10p"
+		(shape passive)
+		(at 405.13 260.35 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "30c45fec-5658-4c70-8555-c654d07760ff")
+	)
 	(hierarchical_label "B3-IO6n"
 		(shape passive)
 		(at 120.65 251.46 180)
@@ -19647,6 +19702,17 @@
 		)
 		(uuid "3121d438-342f-47b6-8d8f-479aadd1e65d")
 	)
+	(hierarchical_label "B3-IO5-COn"
+		(shape passive)
+		(at 405.13 257.81 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "31a183ed-4ddd-450b-8099-598f3295a7f7")
+	)
 	(hierarchical_label "B3-IO2n"
 		(shape passive)
 		(at 120.65 238.76 180)
@@ -19657,6 +19723,39 @@
 			(justify right)
 		)
 		(uuid "3206e992-9d0f-4ecd-987b-68293db05079")
+	)
+	(hierarchical_label "B3-IO1p"
+		(shape passive)
+		(at 422.91 252.73 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "32779a76-cde5-4c01-9bc2-0378f8999583")
+	)
+	(hierarchical_label "B4-IO12-COn"
+		(shape passive)
+		(at 405.13 300.99 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "32afcf02-59ee-4e13-9d73-325277b4e2c6")
+	)
+	(hierarchical_label "B3-IO10n"
+		(shape passive)
+		(at 405.13 262.89 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "338ce6e3-f6a2-4a2b-99e9-70bb3c91c9c0")
 	)
 	(hierarchical_label "B3-IO12"
 		(shape passive)
@@ -19690,6 +19789,17 @@
 			(justify left)
 		)
 		(uuid "34d96dff-f8ad-4f1d-b45e-30f620624b19")
+	)
+	(hierarchical_label "B4-CLK12"
+		(shape passive)
+		(at 405.13 283.21 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "37a696eb-0933-4c8b-972c-18cefa701543")
 	)
 	(hierarchical_label "B3-IO15"
 		(shape passive)
@@ -19735,6 +19845,17 @@
 		)
 		(uuid "3aaca7e8-bcbb-429a-a3b1-e3c10dd71021")
 	)
+	(hierarchical_label "B4-IO7n"
+		(shape passive)
+		(at 422.91 300.99 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3c93ab7d-8d0f-4679-b154-7ef0dcd88f41")
+	)
 	(hierarchical_label "DDR_A8"
 		(shape input)
 		(at 440.69 135.89 180)
@@ -19768,6 +19889,17 @@
 		)
 		(uuid "3da2b5de-7fca-458b-8697-a150ec14a849")
 	)
+	(hierarchical_label "B4-IO12-COp"
+		(shape passive)
+		(at 405.13 298.45 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "3ddc3f7a-775a-4c97-8138-29d23291819b")
+	)
 	(hierarchical_label "B7-CLK9"
 		(shape passive)
 		(at 288.29 195.58 0)
@@ -19778,6 +19910,28 @@
 			(justify left)
 		)
 		(uuid "3f696b65-2b85-4d47-8ddf-c8e2f0f13c62")
+	)
+	(hierarchical_label "B3-IO14"
+		(shape passive)
+		(at 422.91 283.21 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3f8c7bb6-fc93-46ea-b78e-cdf8a7fcf140")
+	)
+	(hierarchical_label "B4-IO3p"
+		(shape passive)
+		(at 405.13 288.29 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "407bec97-608c-4c15-9bd7-64cbaffc863c")
 	)
 	(hierarchical_label "B6-IO8n"
 		(shape passive)
@@ -19834,6 +19988,17 @@
 		)
 		(uuid "4717ef0c-e72e-44e6-9556-d77889af8c55")
 	)
+	(hierarchical_label "B4-IO2n"
+		(shape passive)
+		(at 422.91 290.83 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "4736a549-1d4e-49e5-b344-a9ac6083e242")
+	)
 	(hierarchical_label "B2-IO9p"
 		(shape passive)
 		(at 120.65 220.98 180)
@@ -19844,6 +20009,17 @@
 			(justify right)
 		)
 		(uuid "47825e15-4dc0-4735-a631-01378543b468")
+	)
+	(hierarchical_label "B4-IO5"
+		(shape passive)
+		(at 422.91 293.37 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "4a66833a-5bef-459a-bf89-73f05b2bd13d")
 	)
 	(hierarchical_label "~{DDR_WE}"
 		(shape output)
@@ -19867,6 +20043,17 @@
 		)
 		(uuid "4bb5625e-f266-4ae7-ae68-b2049638f264")
 	)
+	(hierarchical_label "B3-IO8"
+		(shape passive)
+		(at 422.91 262.89 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "4cd01fb4-c93c-495e-81c2-4eb8e568c0fa")
+	)
 	(hierarchical_label "B5-IO6"
 		(shape passive)
 		(at 288.29 335.28 0)
@@ -19877,6 +20064,17 @@
 			(justify left)
 		)
 		(uuid "4d62f9e2-e702-4bc3-90e0-37342865d625")
+	)
+	(hierarchical_label "B3-IO11p"
+		(shape passive)
+		(at 405.13 265.43 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "4d911082-2e51-4876-b30d-8ae5840e978c")
 	)
 	(hierarchical_label "B5-IO5"
 		(shape passive)
@@ -20142,6 +20340,28 @@
 		)
 		(uuid "60e0cd54-2edf-430c-ba5b-f8d26bb57dea")
 	)
+	(hierarchical_label "B4-IO11"
+		(shape passive)
+		(at 422.91 303.53 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "61f377a5-2af6-4d42-8612-64e995c880f4")
+	)
+	(hierarchical_label "B3-IO15"
+		(shape passive)
+		(at 422.91 273.05 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "624cdc1f-4fc7-4562-9d7c-81acd29ad222")
+	)
 	(hierarchical_label "TDI"
 		(shape passive)
 		(at 120.65 162.56 180)
@@ -20196,6 +20416,17 @@
 			(justify left)
 		)
 		(uuid "6550a94e-6df9-4417-aa14-7600262747e6")
+	)
+	(hierarchical_label "B4-IO3n"
+		(shape passive)
+		(at 405.13 290.83 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "665b3cad-7465-4067-8bfb-a73f600fe8c3")
 	)
 	(hierarchical_label "DDR_A2"
 		(shape input)
@@ -20263,6 +20494,17 @@
 		)
 		(uuid "6b643e65-f2e7-4d85-884a-4f863bd737e1")
 	)
+	(hierarchical_label "B3-IO12"
+		(shape passive)
+		(at 422.91 265.43 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6bf89a5b-a9b4-4147-895b-81dcc4dc07ab")
+	)
 	(hierarchical_label "B5-IO9n"
 		(shape passive)
 		(at 288.29 322.58 0)
@@ -20295,6 +20537,17 @@
 			(justify right)
 		)
 		(uuid "6f592a72-45a8-46a8-925e-bd02941affdd")
+	)
+	(hierarchical_label "B3-IO6p"
+		(shape passive)
+		(at 422.91 257.81 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "700b0233-a48b-439e-8718-c539ad5a8ab5")
 	)
 	(hierarchical_label "B6-IO4"
 		(shape passive)
@@ -20395,6 +20648,17 @@
 		)
 		(uuid "7438c873-615e-4b55-95a3-d7c468fb005d")
 	)
+	(hierarchical_label "B3-IO16"
+		(shape passive)
+		(at 422.91 275.59 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "76c34eb6-31c1-4100-84cb-365d5b15259b")
+	)
 	(hierarchical_label "B5-IO6"
 		(shape passive)
 		(at 405.13 321.31 180)
@@ -20438,6 +20702,17 @@
 			(justify left)
 		)
 		(uuid "7b3d63b4-260c-41f4-839b-d3bf0021d23e")
+	)
+	(hierarchical_label "B4-IO8"
+		(shape passive)
+		(at 405.13 285.75 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "7bbb3a6c-22b2-4b02-a8c0-2e21b564a410")
 	)
 	(hierarchical_label "B5-IO9n"
 		(shape passive)
@@ -20659,6 +20934,17 @@
 		)
 		(uuid "90acd2cf-91bb-4707-b526-18ed8a2fd892")
 	)
+	(hierarchical_label "B4-IO2p"
+		(shape passive)
+		(at 422.91 288.29 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "90c94b4d-b293-4c55-9dc3-def98461192f")
+	)
 	(hierarchical_label "nSTATUS"
 		(shape passive)
 		(at 120.65 147.32 180)
@@ -20747,6 +21033,17 @@
 		)
 		(uuid "96db617c-ece9-4d88-ae7d-81a7bcbe28c4")
 	)
+	(hierarchical_label "B3-IO4-COp"
+		(shape passive)
+		(at 405.13 255.27 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "97c79520-9920-4026-ab28-8b8691d35fa7")
+	)
 	(hierarchical_label "B3-CLK15"
 		(shape passive)
 		(at 120.65 289.56 180)
@@ -20757,6 +21054,17 @@
 			(justify right)
 		)
 		(uuid "99732c28-6eea-49fc-9b65-392689eb4e9e")
+	)
+	(hierarchical_label "B3-IO13p"
+		(shape passive)
+		(at 405.13 270.51 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "99779cee-fb20-4b10-b1b1-902fd16a29f5")
 	)
 	(hierarchical_label "B3-IO13n"
 		(shape passive)
@@ -21176,6 +21484,17 @@
 		)
 		(uuid "bc188c38-5efe-4185-992a-209cbc56a653")
 	)
+	(hierarchical_label "B4-IO7p"
+		(shape passive)
+		(at 422.91 298.45 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "bc9b7c30-5491-45a0-ae7f-17eb5c4812e7")
+	)
 	(hierarchical_label "DDR_A12"
 		(shape input)
 		(at 440.69 146.05 180)
@@ -21197,6 +21516,17 @@
 			(justify left)
 		)
 		(uuid "be037023-8527-44ce-8228-c3d3048dd13b")
+	)
+	(hierarchical_label "B4-IO4n"
+		(shape passive)
+		(at 405.13 295.91 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "be2e32b5-fd57-430b-a835-c5bcab5c63cb")
 	)
 	(hierarchical_label "B2-IO5n"
 		(shape passive)
@@ -21308,6 +21638,17 @@
 		)
 		(uuid "c3575cf1-c436-421e-85a2-2bc0a87356a5")
 	)
+	(hierarchical_label "B4-IO10n"
+		(shape passive)
+		(at 405.13 306.07 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c366f561-7b6e-4f6e-9740-1278e2bc0af0")
+	)
 	(hierarchical_label "B4-IO5"
 		(shape passive)
 		(at 120.65 322.58 180)
@@ -21340,6 +21681,17 @@
 			(justify right)
 		)
 		(uuid "c633aead-7886-4c77-b325-a1436c81fb26")
+	)
+	(hierarchical_label "B3-CLK14"
+		(shape passive)
+		(at 405.13 278.13 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c85886d5-f961-44c6-ac8f-e369ea52de23")
 	)
 	(hierarchical_label "DDR_A0"
 		(shape output)
@@ -21396,6 +21748,17 @@
 		)
 		(uuid "cd5e08db-5777-4b92-8c7d-f23d100bf73d")
 	)
+	(hierarchical_label "B4-IO4p"
+		(shape passive)
+		(at 405.13 293.37 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "cf9e11d2-abe5-47d3-afc8-11b484e50c8d")
+	)
 	(hierarchical_label "B3-IO10n"
 		(shape passive)
 		(at 120.65 264.16 180)
@@ -21417,6 +21780,17 @@
 			(justify right)
 		)
 		(uuid "d0468455-beac-4bf9-b45d-487d52cce9da")
+	)
+	(hierarchical_label "B3-IO2n"
+		(shape passive)
+		(at 405.13 252.73 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d18b0059-7b74-43f8-b466-45f50d38b894")
 	)
 	(hierarchical_label "DCLK"
 		(shape passive)
@@ -21462,6 +21836,28 @@
 		)
 		(uuid "d5074696-628e-43d2-b01a-45731a1aa9d7")
 	)
+	(hierarchical_label "B3-IO7"
+		(shape passive)
+		(at 422.91 267.97 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d5249ff3-4593-41a0-9476-fd0ba26bde75")
+	)
+	(hierarchical_label "B3-IO2p"
+		(shape passive)
+		(at 405.13 250.19 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d7c82111-0213-4fd1-b13a-d2c4c51b264b")
+	)
 	(hierarchical_label "B4-IO11"
 		(shape passive)
 		(at 120.65 342.9 180)
@@ -21483,6 +21879,17 @@
 			(justify right)
 		)
 		(uuid "d8ba8f69-a201-4e56-bc0e-329f997e7e7e")
+	)
+	(hierarchical_label "B3-IO6n"
+		(shape passive)
+		(at 422.91 260.35 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d94b5d7b-5d52-4b16-9eb1-b6f2ff2ff7f1")
 	)
 	(hierarchical_label "DDR_DQS1"
 		(shape input)
@@ -21572,6 +21979,17 @@
 		)
 		(uuid "e0eb1376-59ca-41d9-978e-a4ee6ee940db")
 	)
+	(hierarchical_label "B4-IO6"
+		(shape passive)
+		(at 422.91 295.91 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "e156b4ae-029c-437e-8fcc-d68a2d5a6b15")
+	)
 	(hierarchical_label "DDR_DQ14"
 		(shape bidirectional)
 		(at 505.46 140.97 0)
@@ -21605,6 +22023,28 @@
 		)
 		(uuid "e7034e26-9e21-4710-b67a-41ade608b33f")
 	)
+	(hierarchical_label "B3-IO11n"
+		(shape passive)
+		(at 405.13 267.97 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e71977ee-bfb7-4d78-90a0-037387e20989")
+	)
+	(hierarchical_label "B3-IO15"
+		(shape passive)
+		(at 422.91 280.67 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "e7a36e62-cdfa-4819-b8c2-760bc7f844e0")
+	)
 	(hierarchical_label "DDR_DQ8"
 		(shape bidirectional)
 		(at 288.29 208.28 0)
@@ -21615,6 +22055,17 @@
 			(justify left)
 		)
 		(uuid "e93fa32b-fd87-4b2c-bd50-89a605db9e0a")
+	)
+	(hierarchical_label "B4-CLK13"
+		(shape passive)
+		(at 405.13 280.67 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "e970dd41-c020-42a1-b9c3-8684eb62dee0")
 	)
 	(hierarchical_label "B5-IO11"
 		(shape passive)
@@ -21671,6 +22122,17 @@
 		)
 		(uuid "ecba38de-fb8e-4b34-9331-3453f8bef2a8")
 	)
+	(hierarchical_label "B3-CLK15"
+		(shape passive)
+		(at 405.13 275.59 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "ed8a28be-cb25-4d01-a0ec-d6ef9da0314b")
+	)
 	(hierarchical_label "DDR_A4"
 		(shape input)
 		(at 440.69 125.73 180)
@@ -21681,6 +22143,17 @@
 			(justify right)
 		)
 		(uuid "ee85ace2-37ae-425a-9e0e-3d20998e1928")
+	)
+	(hierarchical_label "B4-IO9"
+		(shape passive)
+		(at 422.91 285.75 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ee965e26-d9f2-4569-966d-85c5855c8774")
 	)
 	(hierarchical_label "DDR_DQ12"
 		(shape bidirectional)
@@ -21703,6 +22176,17 @@
 			(justify left)
 		)
 		(uuid "f02bfbe7-4d21-44e6-954b-ff2210597c8e")
+	)
+	(hierarchical_label "B4-IO1"
+		(shape passive)
+		(at 422.91 278.13 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "f0bed448-ffd4-4f35-ac21-54a18dd42e80")
 	)
 	(hierarchical_label "DDR_A6"
 		(shape input)
@@ -21791,6 +22275,17 @@
 			(justify left)
 		)
 		(uuid "fa8b6740-d0bc-4892-af3d-4ad756b6a01d")
+	)
+	(hierarchical_label "B4-IO10p"
+		(shape passive)
+		(at 405.13 303.53 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "fc845fb1-fc50-4739-86a9-63548e19c6ee")
 	)
 	(hierarchical_label "B3-IO9"
 		(shape passive)
