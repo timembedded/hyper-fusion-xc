@@ -19594,12 +19594,12 @@
 	)
 	(hierarchical_label "TDO"
 		(shape passive)
-		(at 405.13 217.17 180)
+		(at 422.91 219.71 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify right)
+			(justify left)
 		)
 		(uuid "24ef1072-df55-40de-9141-2132d1576815")
 	)
@@ -21352,6 +21352,17 @@
 		)
 		(uuid "a2057739-55ca-4685-82f4-fd5a4fda9357")
 	)
+	(hierarchical_label "B1-CLK1"
+		(shape passive)
+		(at 422.91 227.33 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "a31eadd3-9677-4479-80c0-6daae408ace8")
+	)
 	(hierarchical_label "DDR_DQ15"
 		(shape bidirectional)
 		(at 288.29 241.3 0)
@@ -22080,12 +22091,12 @@
 	)
 	(hierarchical_label "TDI"
 		(shape passive)
-		(at 422.91 219.71 0)
+		(at 405.13 217.17 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left)
+			(justify right)
 		)
 		(uuid "dcd76563-447e-46b5-9e3b-1ff1a8859263")
 	)
