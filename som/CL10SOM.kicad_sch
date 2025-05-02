@@ -18231,16 +18231,6 @@
 	)
 	(wire
 		(pts
-			(xy 69.85 153.67) (xy 69.85 158.75)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b1212f1b-e060-4198-ab9a-c0892964feb4")
-	)
-	(wire
-		(pts
 			(xy 203.2 378.46) (xy 203.2 379.73)
 		)
 		(stroke
@@ -18988,16 +18978,6 @@
 			(type default)
 		)
 		(uuid "de9bb2b7-3af0-4221-9edf-300b6f9547b9")
-	)
-	(wire
-		(pts
-			(xy 55.88 153.67) (xy 55.88 158.75)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "df1f6b1c-0520-49aa-8ecd-9283cb1a02d2")
 	)
 	(wire
 		(pts
@@ -25496,73 +25476,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 55.88 158.75 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "28618545-532a-451a-ab87-27208b61ec63")
-		(property "Reference" "TP2"
-			(at 58.42 160.7819 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 58.42 163.3219 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
-			(at 50.8 158.75 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 50.8 158.75 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "test point"
-			(at 55.88 158.75 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "926c72f3-4943-4799-b50d-30413b5dfd6d")
-		)
-		(instances
-			(project ""
-				(path "/dc7b2672-e830-4a16-8d9e-d44ab4cff2d4"
-					(reference "TP2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Sheet1-altium-import:root_1_C_0805")
 		(at 457.2 359.41 0)
 		(mirror x)
@@ -27402,7 +27315,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
+		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.0mm_Drill0.5mm"
 			(at 45.72 154.94 0)
 			(effects
 				(font
@@ -28568,7 +28481,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
+		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.0mm_Drill0.5mm"
 			(at 81.28 101.6 0)
 			(effects
 				(font
@@ -28602,72 +28515,6 @@
 			(project "CL10SOM"
 				(path "/dc7b2672-e830-4a16-8d9e-d44ab4cff2d4"
 					(reference "TP5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+5V")
-		(at 55.88 153.67 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "704bdac6-974b-41b5-bcb4-b77e795c9c5e")
-		(property "Reference" "#PWR051"
-			(at 55.88 157.48 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+5V"
-			(at 55.88 148.59 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 55.88 153.67 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 55.88 153.67 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 55.88 153.67 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "dbace791-4ce3-4c10-afe3-e7d156719ba9")
-		)
-		(instances
-			(project "HyperFusionXC"
-				(path "/dc7b2672-e830-4a16-8d9e-d44ab4cff2d4"
-					(reference "#PWR051")
 					(unit 1)
 				)
 			)
@@ -30691,7 +30538,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
+		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.0mm_Drill0.5mm"
 			(at 128.27 41.91 0)
 			(effects
 				(font
@@ -30824,7 +30671,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
+		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.0mm_Drill0.5mm"
 			(at 129.54 73.66 0)
 			(effects
 				(font
@@ -31099,7 +30946,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm"
+		(property "Footprint" "TestPoint:TestPoint_THTPad_D1.0mm_Drill0.5mm"
 			(at 81.28 127 0)
 			(effects
 				(font
