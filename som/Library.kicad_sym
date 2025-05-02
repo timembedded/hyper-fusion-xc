@@ -29876,4 +29876,159 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "SG3225CAN"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "U7"
+			(at 12.7 6.35 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+			)
+		)
+		(property "Value" "SG3225CAN 50.0000M-TJGA6"
+			(at 13.97 5.08 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify top)
+			)
+		)
+		(property "Footprint" "Library:SG3225CAN"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://support.epson.biz/td/api/doc_check.php?dl=brief_SG3225CAN&lang=en"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "DIGIKEY" "114-SG3225CAN50.0000M-TJGA6CT-ND"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "ki_fp_filters" "SPXO_32_25"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(symbol "SG3225CAN_0_0"
+			(rectangle
+				(start 7.62 2.54)
+				(end 20.32 -7.62)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+		)
+		(symbol "SG3225CAN_1_0"
+			(pin input inverted
+				(at 0 0 0)
+				(length 7.62)
+				(name "~{ST}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin power_in line
+				(at 0 -5.08 0)
+				(length 7.62)
+				(name "GND"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 27.94 0 180)
+				(length 7.62)
+				(name "OUT"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin power_in line
+				(at 27.94 -5.08 180)
+				(length 7.62)
+				(name "VCC"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
 )
