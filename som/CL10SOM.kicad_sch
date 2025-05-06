@@ -23966,7 +23966,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "MountingHole:MountingHole_3.5mm_Pad_Via"
+		(property "Footprint" "MountingHole:MountingHole_2.7mm_M2.5_Pad_Via"
 			(at 558.8 359.41 0)
 			(effects
 				(font
@@ -31320,7 +31320,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MIC-VFBGA-60-BF_MRN"
+		(property "Footprint" "Library:MIC-VFBGA-60-BF_MRN"
 			(at 440.69 105.41 0)
 			(effects
 				(font
@@ -32585,7 +32585,7 @@
 				)
 			)
 		)
-		(property "Footprint" "BGA256C80P16X16_1400X1400X150"
+		(property "Footprint" "Library:BGA256C80P16X16_1400X1400X150"
 			(at 162.56 205.41 0)
 			(effects
 				(font
