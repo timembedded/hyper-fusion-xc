@@ -110,7 +110,7 @@
     "expanded_rows": [],
     "filter_by_net_name": true,
     "filter_by_netclass": true,
-    "filter_text": "b2-io5",
+    "filter_text": "ddr_",
     "group_by_constraint": false,
     "group_by_netclass": false,
     "show_unconnected_nets": false,
