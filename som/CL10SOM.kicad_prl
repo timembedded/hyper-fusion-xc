@@ -1,6 +1,6 @@
 {
   "board": {
-    "active_layer": 2,
+    "active_layer": 6,
     "active_layer_preset": "",
     "auto_track_width": false,
     "hidden_netclasses": [],
@@ -50,7 +50,7 @@
       "conflict_shadows",
       "shapes"
     ],
-    "visible_layers": "00000000_00000000_0ffcfff5_d75f77f7",
+    "visible_layers": "00000000_00000000_0ffefff5_f75f55f5",
     "zone_display_mode": 0
   },
   "git": {
@@ -93,7 +93,7 @@
       11
     ],
     "col_widths": [
-      162,
+      244,
       147,
       91,
       67,
@@ -107,12 +107,14 @@
       1225
     ],
     "custom_group_rules": [],
-    "expanded_rows": [],
+    "expanded_rows": [
+      "LVDS_B5 and Default"
+    ],
     "filter_by_net_name": true,
     "filter_by_netclass": true,
-    "filter_text": "ddr_",
+    "filter_text": "B5-IO",
     "group_by_constraint": false,
-    "group_by_netclass": false,
+    "group_by_netclass": true,
     "show_unconnected_nets": false,
     "show_zero_pad_nets": false,
     "sort_ascending": true,
