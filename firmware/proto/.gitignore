@@ -1,0 +1,16 @@
+/db/
+/incremental_db/
+/*.done
+/*.rpt
+/*.smsg
+/*.summary
+/*.qws
+/*.sof
+/*.pof
+/*.sld
+/*.cdf
+/*.pin
+/*.jdi
+/fpga_assignment_defaults.qdf
+greybox_tmp/
+*.bak
