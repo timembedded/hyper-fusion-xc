@@ -80,10 +80,35 @@ entity top is
     pRAMCS_n    : OUT std_logic;
 
     -- SD card interface
-    sd_clk      : out std_logic;
-    sd_cs       : out std_logic;
-    sd_mosi     : inout std_logic;
-    sd_miso     : in std_logic;
+    SD_CLK      : out std_logic;
+    SD_CS       : out std_logic;
+    SD_MOSI     : inout std_logic;
+    SD_MISO     : in std_logic;
+
+    -- ESP
+    ESP_GPIO4   : in std_logic; -- cs
+    ESP_GPIO5   : in std_logic; -- clk
+    ESP_GPIO6   : inout std_logic; -- d3
+    ESP_GPIO7   : inout std_logic; -- d2
+    ESP_GPIO15  : inout std_logic; -- d1
+    ESP_GPIO16  : inout std_logic; -- d0
+    ESP_GPIO17  : in std_logic;
+    ESP_GPIO18  : in std_logic;
+    ESP_GPIO8   : in std_logic;
+    ESP_GPIO3   : in std_logic;
+
+    -- Free pins on CompactFlash
+    HD01        : in std_logic;
+    HD15        : in std_logic;
+    HD07        : in std_logic;
+    HD14        : in std_logic;
+    HD06        : in std_logic;
+    HD13        : in std_logic;
+    HD05        : in std_logic;
+    HD12        : in std_logic;
+    HD04        : in std_logic;
+    HD11        : in std_logic;
+    HD03        : in std_logic;
 
     --  EEPROM
     EECS        : OUT std_logic;
@@ -172,6 +197,15 @@ architecture rtl of top is
   signal enable_fmpac_a_i, enable_fmpac_b_i   : std_logic;
   signal enable_scc_a_i, enable_scc_b_i       : std_logic;
 
+  -- ESP avalon I/O port
+  signal iom_esp_read               : std_logic;
+  signal iom_esp_write              : std_logic;
+  signal iom_esp_address            : std_logic_vector(7 downto 0);
+  signal iom_esp_writedata          : std_logic_vector(7 downto 0);
+  signal iom_esp_readdata           : std_logic_vector(8 downto 0);
+  signal iom_esp_readdatavalid      : std_logic;
+  signal iom_esp_waitrequest        : std_logic;
+
   -- Flash avalon slave port
   signal mem_flash_read_i           : std_logic;
   signal mem_flash_address_i        : std_logic_vector(22 downto 0);
@@ -196,6 +230,15 @@ architecture rtl of top is
   signal mem_flashram_readdata_i      : std_logic_vector(7 downto 0);
   signal mem_flashram_readdatavalid_i : std_logic;
   signal mem_flashram_waitrequest_i   : std_logic;
+
+  -- Avalon bus: ESP32
+  signal iom_esp_read_i               : std_logic;
+  signal iom_esp_write_i              : std_logic;
+  signal iom_esp_address_i            : std_logic_vector(7 downto 0);
+  signal iom_esp_writedata_i          : std_logic_vector(7 downto 0);
+  signal iom_esp_readdata_i           : std_logic_vector(8 downto 0);
+  signal iom_esp_readdatavalid_i      : std_logic;
+  signal iom_esp_waitrequest_i        : std_logic;
 
   -- Avalon bus: Memory mapper
   signal mem_mapper_read_i          : std_logic;
@@ -488,6 +531,32 @@ begin
   );
 
   --------------------------------------------------------------------
+  -- ESP32 interface
+  --------------------------------------------------------------------
+
+  esp32 : entity work.spi_ipc(rtl)
+  port map(
+    -- Clock and reset
+    clock                      => sysclk,
+    reset                      => slot_reset_i,
+    -- IO bus
+    ios_read                   => iom_esp_read_i,
+    ios_write                  => iom_esp_write_i,
+    ios_address                => iom_esp_address_i,
+    ios_writedata              => iom_esp_writedata_i,
+    ios_readdata               => iom_esp_readdata_i,
+    ios_readdatavalid          => iom_esp_readdatavalid_i,
+    ios_waitrequest            => iom_esp_waitrequest_i,
+    -- QSPI
+    spi_cs_n                   => ESP_GPIO4,
+    spi_clk                    => ESP_GPIO5,
+    spi_data(3)                => ESP_GPIO6,
+    spi_data(2)                => ESP_GPIO7,
+    spi_data(1)                => ESP_GPIO15,
+    spi_data(0)                => ESP_GPIO16
+  );
+
+  --------------------------------------------------------------------
   -- Cartridge slot interface
   --------------------------------------------------------------------
 
@@ -629,6 +698,15 @@ begin
     enable_mapper     => enable_mapper_a_i and enable_mapper_b_i,
     enable_fmpac      => enable_fmpac_a_i and enable_fmpac_b_i,
     enable_scc        => '1',
+
+    -- ESP32
+    iom_esp_read             => iom_esp_read_i,
+    iom_esp_write            => iom_esp_write_i,
+    iom_esp_address          => iom_esp_address_i,
+    iom_esp_writedata        => iom_esp_writedata_i,
+    iom_esp_readdata         => iom_esp_readdata_i,
+    iom_esp_readdatavalid    => iom_esp_readdatavalid_i,
+    iom_esp_waitrequest      => iom_esp_waitrequest_i,
 
     -- Memory mapper
     mem_mapper_read          => mem_mapper_read_i,
@@ -901,10 +979,10 @@ begin
     rom_sd_waitrequest    => rom_sd_waitrequest_i,
 
     -- SD/EPC
-    mmc_ck  => sd_clk,
-    mmc_cs  => sd_cs,
-    mmc_di  => sd_mosi,
-    mmc_do  => sd_miso
+    mmc_ck  => SD_CLK,
+    mmc_cs  => SD_CS,
+    mmc_di  => SD_MOSI,
+    mmc_do  => SD_MISO
   );
 
   ----------------------------------------------------------------

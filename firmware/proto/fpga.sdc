@@ -1,8 +1,8 @@
 # Oscillator clock input
 create_clock -period 50MHz [get_ports clk50]
 
-# Slot clock input
-#create_clock -period 3.58MHz [get_ports pSltClk]
+# SPI clock input
+create_clock -period 20MHz [get_ports ESP_GPIO5]
 
 # Automatically constrain PLL and other generated clocks
 derive_pll_clocks -create_base_clocks

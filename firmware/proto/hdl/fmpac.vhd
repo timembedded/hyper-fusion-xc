@@ -56,7 +56,7 @@ end fmpac;
 
 architecture RTL of fmpac is
 
-  type read_state_t is (RS_IDLE, RS_SRAM, RS_ROM);
+  type read_state_t is (RS_IDLE, RS_SRAM, RS_SRAM2, RS_ROM);
   signal read_state_x, read_state_r : read_state_t;
   signal read_waitrequest_i : std_logic;
 
@@ -128,9 +128,18 @@ begin
   -- RAM 8k
   --------------------------------------------------------
 
-  ram8k_a <= mes_fmpac_address(12 downto 0);
-  ram8k_d <= mes_fmpac_writedata;
-  ram8k_wr <= '1' when CsRAM8k = '1' and mes_fmpac_write = '1' else '0';
+  process(clock)
+  begin
+    if rising_edge(clock) then
+      ram8k_a <= mes_fmpac_address(12 downto 0);
+      ram8k_d <= mes_fmpac_writedata;
+      if (CsRAM8k = '1' and mes_fmpac_write = '1') then
+        ram8k_wr <= '1';
+      else
+        ram8k_wr <= '0';
+      end if;
+    end if;
+  end process;
 
   process(clock)
     type ram_t is array (0 to 8191) of std_logic_vector(7 downto 0);
@@ -186,6 +195,8 @@ begin
   rom_fmpac_address <= mes_fmpac_address;
 
   mes_fmpac_waitrequest <= read_waitrequest_i or ym2413_waitrequest_i;
+  mes_fmpac_readdatavalid <= mes_fmpac_readdatavalid_r;
+  mes_fmpac_readdata <= mes_fmpac_readdata_r;
 
   process(all)
   begin
@@ -199,9 +210,6 @@ begin
       when RS_IDLE =>
         -- Accept tarnsfers in this state
         read_waitrequest_i <= '0';
-
-        mes_fmpac_readdatavalid <= mes_fmpac_readdatavalid_r;
-        mes_fmpac_readdata <= mes_fmpac_readdata_r;
 
         -- Decode requests
         if (mes_fmpac_address = "11"&"1111"&"1111"&"0110") then
@@ -234,15 +242,18 @@ begin
         end if;
 
       when RS_SRAM =>
+        -- One clock extra latency
+        read_state_x <= RS_SRAM2;
+      when RS_SRAM2 =>
         -- Read from ram block, fixed 1 cycle latency
-        mes_fmpac_readdata <= ram8k_q;
-        mes_fmpac_readdatavalid <= '1';
+        mes_fmpac_readdata_x <= ram8k_q;
+        mes_fmpac_readdatavalid_x <= '1';
         read_state_x <= RS_IDLE;
 
       when RS_ROM =>
         -- Read from flash, wait for datavalid
-        mes_fmpac_readdata <= rom_fmpac_readdata;
-        mes_fmpac_readdatavalid <= rom_fmpac_readdatavalid;
+        mes_fmpac_readdata_x <= rom_fmpac_readdata;
+        mes_fmpac_readdatavalid_x <= rom_fmpac_readdatavalid;
         if (rom_fmpac_readdatavalid = '1') then
           read_state_x <= RS_IDLE;
         end if;

@@ -143,32 +143,32 @@ set_location_assignment PIN_164 -to pFlDat[6]
 set_location_assignment PIN_165 -to pFlDat[5]
 set_location_assignment PIN_168 -to pFlDat[4]
 set_location_assignment PIN_169 -to pFlDat[3]
-set_location_assignment PIN_170 -to sd_miso
-set_location_assignment PIN_171 -to sd_clk
-set_location_assignment PIN_173 -to sd_mosi
-set_location_assignment PIN_175 -to sd_cs
-set_location_assignment PIN_176 -to pIDEDat[1]
-set_location_assignment PIN_179 -to pIDEDat[0]
-set_location_assignment PIN_180 -to pIDEAdr[0]
-set_location_assignment PIN_181 -to pPIN180
-set_location_assignment PIN_182 -to pIDEAdr[1]
-set_location_assignment PIN_185 -to pIDEAdr[2]
-set_location_assignment PIN_187 -to pIDE_Rst_n
+set_location_assignment PIN_170 -to SD_MISO
+set_location_assignment PIN_171 -to SD_CLK
+set_location_assignment PIN_173 -to SD_MOSI
+set_location_assignment PIN_175 -to SD_CS
+set_location_assignment PIN_176 -to HD01
+set_location_assignment PIN_179 -to ESP_GPIO4
+set_location_assignment PIN_180 -to ESP_GPIO5
+set_location_assignment PIN_181 -to ESP_GPIO6
+set_location_assignment PIN_182 -to ESP_GPIO7
+set_location_assignment PIN_185 -to ESP_GPIO15
+set_location_assignment PIN_187 -to ESP_GPIO16
 set_location_assignment PIN_188 -to pRAMCS_n
-set_location_assignment PIN_189 -to pIDEWR_n
-set_location_assignment PIN_191 -to pIDERD_n
-set_location_assignment PIN_192 -to pIDECS3_n
-set_location_assignment PIN_193 -to pIDECS1_n
-set_location_assignment PIN_195 -to pIDEDat[15]
-set_location_assignment PIN_197 -to pIDEDat[7]
-set_location_assignment PIN_198 -to pIDEDat[14]
-set_location_assignment PIN_199 -to pIDEDat[6]
-set_location_assignment PIN_200 -to pIDEDat[13]
-set_location_assignment PIN_201 -to pIDEDat[5]
-set_location_assignment PIN_203 -to pIDEDat[12]
-set_location_assignment PIN_205 -to pIDEDat[4]
-set_location_assignment PIN_206 -to pIDEDat[11]
-set_location_assignment PIN_207 -to pIDEDat[3]
+set_location_assignment PIN_189 -to ESP_GPIO17
+set_location_assignment PIN_191 -to ESP_GPIO18
+set_location_assignment PIN_192 -to ESP_GPIO8
+set_location_assignment PIN_193 -to ESP_GPIO3
+set_location_assignment PIN_195 -to HD15
+set_location_assignment PIN_197 -to HD07
+set_location_assignment PIN_198 -to HD14
+set_location_assignment PIN_199 -to HD06
+set_location_assignment PIN_200 -to HD13
+set_location_assignment PIN_201 -to HD05
+set_location_assignment PIN_203 -to HD12
+set_location_assignment PIN_205 -to HD04
+set_location_assignment PIN_206 -to HD11
+set_location_assignment PIN_207 -to HD03
 set_location_assignment PIN_208 -to ADC_MD[1]
 
 set_global_assignment -name DISABLE_NCS_AND_OE_PULLUPS_ON_CONFIG_DEVICE OFF
@@ -254,6 +254,25 @@ set_instance_assignment -name PASSIVE_RESISTOR "PULL-UP" -to "pIDEDat(6)"
 set_global_assignment -name SEARCH_PATH ip/pll
 
 set_global_assignment -name VHDL_INPUT_VERSION VHDL_2008
+set_global_assignment -name CYCLONEII_OPTIMIZATION_TECHNIQUE SPEED
+set_global_assignment -name SYNTH_TIMING_DRIVEN_SYNTHESIS ON
+set_global_assignment -name ADV_NETLIST_OPT_SYNTH_WYSIWYG_REMAP ON
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlAdr
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlDat
+set_instance_assignment -name FAST_INPUT_REGISTER ON -to pFlDat
+#set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to pFlDat
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlCS_n
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlOE_n
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlW_n
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to sd_clk
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to sd_cs
+set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to sd_mosi
+set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to sd_mosi
+set_instance_assignment -name FAST_INPUT_REGISTER ON -to sd_miso
+set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to pIDEDat
+set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
+set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
+set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING ON
 set_global_assignment -name VHDL_FILE hdl/opll2/VoiceRom.vhd
 set_global_assignment -name VHDL_FILE hdl/opll2/VoiceMemory.vhd
 set_global_assignment -name VHDL_FILE hdl/opll2/vm2413.vhd
@@ -289,22 +308,6 @@ set_global_assignment -name VHDL_FILE hdl/audio/sample_volume.vhd
 set_global_assignment -name VHDL_FILE hdl/flash_ram_interface.vhd
 set_global_assignment -name VHDL_FILE hdl/flash_layout.vhd
 set_global_assignment -name VHDL_FILE hdl/ram_layout.vhd
-set_global_assignment -name CYCLONEII_OPTIMIZATION_TECHNIQUE SPEED
-set_global_assignment -name SYNTH_TIMING_DRIVEN_SYNTHESIS ON
-set_global_assignment -name ADV_NETLIST_OPT_SYNTH_WYSIWYG_REMAP ON
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlAdr
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlDat
-set_instance_assignment -name FAST_INPUT_REGISTER ON -to pFlDat
-#set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to pFlDat
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlCS_n
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlOE_n
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to pFlW_n
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to sd_clk
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to sd_cs
-set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to sd_mosi
-set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to sd_mosi
-set_instance_assignment -name FAST_INPUT_REGISTER ON -to sd_miso
-set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to pIDEDat
 set_global_assignment -name VHDL_FILE hdl/memory_mapper.vhd
 set_global_assignment -name VHDL_FILE hdl/audio/waveform_generator.vhd
 set_global_assignment -name VHDL_FILE hdl/keyboard_sniffer.vhd
@@ -312,8 +315,7 @@ set_global_assignment -name VHDL_FILE hdl/config_manager.vhd
 set_global_assignment -name VHDL_FILE hdl/scc_wave.vhd
 set_global_assignment -name VHDL_FILE hdl/scc.vhd
 set_global_assignment -name VHDL_FILE hdl/mega_ram.vhd
-set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
-set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
-set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING ON
 set_global_assignment -name VHDL_FILE hdl/megasd.vhd
+set_global_assignment -name VHDL_FILE hdl/ipc/ipc_pkg.vhd
+set_global_assignment -name VHDL_FILE hdl/ipc/spi_ipc.vhd
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

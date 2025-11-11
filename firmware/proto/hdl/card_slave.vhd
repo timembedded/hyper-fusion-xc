@@ -82,10 +82,11 @@ end card_bus_slave;
 
 architecture rtl of card_bus_slave is
 
-  constant IO_CYCLE_TIME   : integer := 15; -- 150ns, after this time the sniffer samples the data
+  constant IO_CYCLE_TIME       : integer := 15; -- 150ns, after this time the sniffer samples the data
 
-  constant MAX_CYCLE_TIME  : integer := 28; -- 280ns, when no data yet after this time, the WAIT signal will be asserted
-  constant WAIT_DATA_HOLD  : integer := 8;  -- 80ns, when data arrives when WAIT asserted, keep WAIT active this time
+  constant MAX_MEM_CYCLE_TIME  : integer := 15; -- 150ns, when no data for MEMORY read after this time, the WAIT signal will be asserted
+  constant MAX_IO_CYCLE_TIME   : integer := 30; -- 300ns, when no data for IO read after this time, the WAIT signal will be asserted
+  constant WAIT_HOLD_TIME      : integer := 2;  -- 20ns, when data arrives when WAIT asserted, keep WAIT active this time
 
   -- State machine
   type state_t is (S_RESET, S_IDLE, S_MEM_START_READ, S_MEM_RETURN_DATA, S_MEM_START_WRITE, S_MEM_WRITE_DONE,
@@ -94,9 +95,10 @@ architecture rtl of card_bus_slave is
   type sniff_state_t is (SF_RESET, SF_IDLE, SF_READ_SNIFF, SF_FINISH_SNIFF);
   signal sniff_state_x, sniff_state_r     : sniff_state_t;
   signal sniff_io_time_x, sniff_io_time_r : integer range 0 to IO_CYCLE_TIME-1;
-  signal wait_time_x, wait_time_r         : integer range 0 to MAX_CYCLE_TIME-1;
+  signal wait_time_x, wait_time_r         : integer range 0 to MAX_IO_CYCLE_TIME-1;
   signal slot_wait_x, slot_wait_r         : std_logic;
-  signal waiting_x, waiting_r             : std_logic;
+  signal mem_waiting_x, mem_waiting_r     : std_logic;
+  signal iom_waiting_x, iom_waiting_r     : std_logic;
 
   -- Asynchronous signals
   signal memrd_i, memwr_i                 : std_logic;
@@ -208,8 +210,9 @@ begin
 
     if (slot_wait_r = '0') then
       -- WAIT not asserted
-      if (waiting_r = '1') then
-        if (wait_time_r < MAX_CYCLE_TIME-1) then
+      if (mem_waiting_r = '1' or iom_waiting_r = '1') then
+        if ((mem_waiting_r = '1' and wait_time_r < MAX_MEM_CYCLE_TIME-1) or
+            (iom_waiting_r = '1' and wait_time_r < MAX_IO_CYCLE_TIME-1)) then
           wait_time_x <= wait_time_r + 1;
         else
           -- bus is blocked for MAX_CYCLE_TIME clocks, assert WAIT signal
@@ -221,9 +224,9 @@ begin
       end if;
     else
       -- WAIT asserted, wait till we can release it
-      if (waiting_r = '0') then
-        -- release after WAIT_DATA_HOLD clocks
-        if (wait_time_r /= WAIT_DATA_HOLD) then
+      if (mem_waiting_r = '0' and iom_waiting_r = '0') then
+        -- release after WAIT_HOLD_TIME clocks
+        if (wait_time_r /= WAIT_HOLD_TIME) then
           wait_time_x <= wait_time_r + 1;
         else
           slot_wait_x <= '0';
@@ -238,7 +241,8 @@ begin
   p_mem : process(all)
   begin
     state_x <= state_r;
-    waiting_x <= waiting_r;
+    mem_waiting_x <= mem_waiting_r;
+    iom_waiting_x <= iom_waiting_r;
 
     slot_reset_n_x <= '1';
     slot_readdata_x <= slot_readdata_r;
@@ -277,30 +281,31 @@ begin
         -- Note that no synchronizers are needed for address
         -- and data from the slot as the signals are guaranteed
         -- to be stable when one of the read/writes gets active
-        waiting_x <= '0';
+        mem_waiting_x <= '0';
+        iom_waiting_x <= '0';
         if (slt_reset_n_r = '0') then
           state_x <= S_RESET;
         elsif (memrd_r = '1' or memxrd_r = '1') then
           mem_read_x <= '1';
           mem_address_x <= sltslx_i & slt_addr;
-          waiting_x <= '1';
+          mem_waiting_x <= '1';
           state_x <= S_MEM_START_READ;
         elsif (memwr_r = '1' or memxwr_r = '1') then
           mem_write_x <= '1';
           mem_address_x <= sltslx_i & slt_addr;
-          waiting_x <= '1';
+          mem_waiting_x <= '1';
           mem_writedata_x <= slt_data;
           state_x <= S_MEM_START_WRITE;
         elsif (iord_r = '1') then
           iom_read_x <= '1';
           iom_address_x <= slt_addr(7 downto 0);
-          waiting_x <= '1';
+          iom_waiting_x <= '1';
           state_x <= S_IO_START_READ;
         elsif (iowr_r = '1') then
           iom_write_x <= '1';
           iom_address_x <= slt_addr(7 downto 0);
           iom_writedata_x <= slt_data;
-          waiting_x <= '1';
+          iom_waiting_x <= '1';
           state_x <= S_IO_START_WRITE;
         end if;
 
@@ -318,7 +323,7 @@ begin
           slt_bdir_n <= '0';
         end if;
         if (mem_readdatavalid = '1') then
-          waiting_x <= '0';
+          mem_waiting_x <= '0';
           slot_readdata_x <= mem_readdata;
         end if;
         if (memrd_r = '0' and memxrd_r = '0') then
@@ -332,7 +337,7 @@ begin
           mem_write_x <= '1';
         else
           -- We're done
-          waiting_x <= '0';
+          mem_waiting_x <= '0';
           if (memwr_r = '0' and memxwr_r = '0') then
             state_x <= S_IDLE;
           else
@@ -356,7 +361,7 @@ begin
         -- Show the data on the Z80 bus
         slt_bdir_n <= '0';
         if (iom_readdatavalid = '1') then
-          waiting_x <= '0';
+          iom_waiting_x <= '0';
           slot_readdata_x <= iom_readdata;
         end if;
         if (iord_r = '0') then
@@ -370,7 +375,7 @@ begin
           iom_write_x <= '1';
         else
           -- We're done
-          waiting_x <= '0';
+          iom_waiting_x <= '0';
           if (iowr_r = '0') then
             state_x <= S_IDLE;
           else
@@ -480,7 +485,8 @@ begin
       state_r <= S_RESET;
       sniff_state_r <= SF_RESET;
       wait_time_r <= 0;
-      waiting_r <= '0';
+      mem_waiting_r <= '0';
+      iom_waiting_r <= '0';
       slot_reset_n_r <= '0';
       soft_reset_r <= '0';
       slot_reg_r <= x"00";
@@ -496,7 +502,8 @@ begin
       state_r <= state_x;
       sniff_state_r <= sniff_state_x;
       wait_time_r <= wait_time_x;
-      waiting_r <= waiting_x;
+      mem_waiting_r <= mem_waiting_x;
+      iom_waiting_r <= iom_waiting_x;
       slot_reset_n_r <= slot_reset_n_x;
       soft_reset_r <= soft_reset_x;
       slot_reg_r <= slot_reg_x;
