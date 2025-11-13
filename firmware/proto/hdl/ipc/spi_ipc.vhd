@@ -22,7 +22,8 @@ entity spi_ipc is
     -- QSPI
     spi_cs_n                    : in std_logic;
     spi_clk                     : in std_logic;
-    spi_data                    : inout std_logic_vector(3 downto 0)
+    spi_data                    : inout std_logic_vector(3 downto 0);
+    spi_irq                     : out std_logic
   );
 end entity spi_ipc;
 
@@ -30,6 +31,8 @@ architecture rtl of spi_ipc is
 
   type write_state_t is (WS_IDLE, WS_FIFO_READ, WS_WRITE_START, WS_READ_START, WS_RD_IPC, WS_RD_IPC_2);
   signal write_state_x, write_state_r : write_state_t;
+  signal io_enabled_x, io_enabled_r : std_logic;
+
 
   signal ios_address_r            : std_logic_vector(7 downto 0);
   signal ios_writedata_r          : std_logic_vector(7 downto 0);
@@ -64,18 +67,37 @@ architecture rtl of spi_ipc is
   signal ofifo_wrfull	            : std_logic;
   signal ofifo_data_i             : ofifo_data_t;
 
-  type spi_state_t is (SS_C0, SS_C1, SS_IFIFO_C2, SS_IFIFO_C3, SS_IFIFO_C4, SS_IFIFO_C5, SS_IFIFO_C6, SS_OFIFO_C2, SS_OFIFO_C3, SS_OFIFO_C4, SS_OFIFO_C5, SS_OFIFO_C6, SS_OFIFO_C7);
-  signal spi_state_x, spi_state_r : spi_state_t;
-  signal spi_out_x, spi_out_r     : std_logic_vector(3 downto 0);
-  signal spi_oe_x, spi_oe_r       : std_logic;
+  type spi_state_t is (SS_C0, SS_C1, SS_C2, SS_IFIFO_C3, SS_IFIFO_C4, SS_IFIFO_C5, SS_IFIFO_C6,
+                       SS_OFIFO_C3, SS_OFIFO_C4, SS_OFIFO_C5, SS_OFIFO_C6, SS_OFIFO_C7,
+                       SS_OFIFO_C8, SS_OFIFO_C9);
+  signal spi_state_x, spi_state_r     : spi_state_t;
+  signal spi_out_x, spi_out_r         : std_logic_vector(3 downto 0);
+  signal spi_oe_x, spi_oe_r           : std_logic;
   signal spi_command_x, spi_command_r : std_logic_vector(3 downto 0);
   signal spi_address_x, spi_address_r : std_logic_vector(7 downto 0);
-  signal spi_data_x, spi_data_r   : std_logic_vector(7 downto 0);
+  signal spi_dvalid_x, spi_dvalid_r   : std_logic;
+  signal spi_data_x, spi_data_r       : std_logic_vector(7 downto 0);
+  signal spi_irq_set_i, spi_irq_set_ff : std_logic;
+  signal spi_irq_reset_i              : std_logic;
 
 begin
 
   -- Connect QSPI
   spi_data <= spi_out_r when spi_oe_r = '1' else (others => 'Z');
+
+  -- IRQ generation
+  process(clock)
+  begin
+    if (spi_irq_reset_i = '1') then
+      spi_irq <= '0';
+      spi_irq_set_ff <= '0';
+    elsif rising_edge(clock) then
+      spi_irq_set_ff <= spi_irq_set_i;
+      if (spi_irq_set_ff = '1') then
+        spi_irq <= '1';
+      end if;
+    end if;
+  end process;
 
   -- RAMs:
   --
@@ -124,12 +146,12 @@ begin
 		lpm_width => 18,
 		lpm_widthu => 8,
 		overflow_checking => "ON",
-		rdsync_delaypipe => 5,
+		rdsync_delaypipe => 2,
 		read_aclr_synch => "ON",
 		underflow_checking => "ON",
 		use_eab => "ON",
 		write_aclr_synch => "OFF",
-		wrsync_delaypipe => 5
+		wrsync_delaypipe => 2
 	)
 	port map (
 		aclr => open,
@@ -155,17 +177,17 @@ begin
 	generic map (
 		intended_device_family => "Cyclone II",
 		lpm_numwords => 256,
-		lpm_showahead => "ON",
+		lpm_showahead => "OFF",
 		lpm_type => "dcfifo",
 		lpm_width => 18,
 		lpm_widthu => 8,
 		overflow_checking => "ON",
-		rdsync_delaypipe => 5,
+		rdsync_delaypipe => 2,
 		read_aclr_synch => "ON",
 		underflow_checking => "ON",
 		use_eab => "ON",
 		write_aclr_synch => "OFF",
-		wrsync_delaypipe => 5
+		wrsync_delaypipe => 2
 	)
 	port map (
 		aclr => open,
@@ -192,6 +214,7 @@ begin
   begin
     -- State machine
     write_state_x <= write_state_r;
+    io_enabled_x <= io_enabled_r;
 
     -- IO slave bus
     ios_waitrequest <= '1';
@@ -216,13 +239,16 @@ begin
     ofifo_data_i.writedata <= ios_writedata_r;
     ofifo_data_i.command <= t_remote_write;
 
+    -- IRQ
+    spi_irq_set_i <= '0';
+
     -- State machine
     case (write_state_r) is
     when WS_IDLE =>
       ios_waitrequest <= '0';
       if (ios_read = '1') then
           write_state_x <= WS_READ_START;
-      elsif (ios_write = '1') then
+      elsif (io_enabled_r = '1' and ios_write = '1') then
           write_state_x <= WS_WRITE_START;
       elsif (ififo_rdempty = '0') then
           ififo_rdreq <= '1';
@@ -230,22 +256,30 @@ begin
       end if;
 
     when WS_FIFO_READ =>
+      ioram_write_address <= ififo_q_i.address;
       case (ififo_q_i.command) is
       when t_incmd_update =>
           -- Update data in RAM, clear pending bit
           ioram_write <= '1';
-          ioram_write_address <= ififo_q_i.address;
           ioram_wrdata_i.readdata <= ififo_q_i.data;
           ioram_wrdata_i.pending <= '0';
       when t_incmd_set_properties =>
           -- Write properties
           ioram_write <= '1';
           ioram_wrdata_i.properties <= from_std_logic_vector(ififo_q_i.data(3 downto 0));
+          if (ififo_q_i.address = x"ff") then
+            if (ififo_q_i.data = x"55" ) then
+              io_enabled_x <= '1';
+            else
+              io_enabled_x <= '0';
+            end if;
+          end if;
       when t_incmd_loopback =>
           ofifo_data_i.command <= t_remote_loopback;
           ofifo_data_i.writeaddress <= ififo_q_i.address;
           ofifo_data_i.writedata <= ififo_q_i.data;
           ofifo_wrreq <= not ofifo_wrfull;
+          spi_irq_set_i <= not ofifo_wrfull;
       end case;
       write_state_x <= WS_IDLE;
 
@@ -258,6 +292,7 @@ begin
         ofifo_data_i.command <= t_remote_write;
         if (ofifo_wrfull = '0') then
             ofifo_wrreq <= '1';
+            spi_irq_set_i <= '1';
             write_state_x <= WS_IDLE;
         end if;
       else
@@ -265,42 +300,52 @@ begin
       end if;
 
     when WS_READ_START =>
-      case (ioram_rddata_i.properties.read_mode) is
-      when t_rdmode_disabled =>
-          -- return nothing
-          ios_readdatavalid <= '1';
-          write_state_x <= WS_IDLE;
-      when t_rdmode_cache =>
-          -- return data from RAM
-          ios_readdatavalid <= '1';
-          ios_readdata <= '1' & ioram_rddata_i.readdata;
-          write_state_x <= WS_IDLE;
-      when t_rdmode_cache_notify =>
-          -- return data from RAM + notify
-          ios_readdatavalid <= '1';
-          ios_readdata <= '1' & ioram_rddata_i.readdata;
-          if (ofifo_wrfull = '0') then
-            ofifo_wrreq <= '1';
-            ofifo_data_i.command <= t_remote_notify;
-            ofifo_data_i.writedata <= ioram_rddata_i.readdata;
+      if (io_enabled_r = '0') then
+        -- not enabled, return nothing
+        ios_readdatavalid <= '1';
+        write_state_x <= WS_IDLE;
+      else
+        -- return data depending on the read_mode
+        case (ioram_rddata_i.properties.read_mode) is
+        when t_rdmode_disabled =>
+            -- return nothing
+            ios_readdatavalid <= '1';
             write_state_x <= WS_IDLE;
-          end if;
-      when t_rdmode_ipc =>
-          -- read over IPC, send read command to remote
-          ofifo_data_i.command <= t_remote_read;
-          ioram_wrdata_i.pending <= '1';
-          if (ofifo_wrfull = '0') then
-            ofifo_wrreq <= '1';
-            ioram_write <= '1';
-            write_state_x <= WS_RD_IPC;
-          end if;
-      end case;
+        when t_rdmode_cache =>
+            -- return data from RAM
+            ios_readdatavalid <= '1';
+            ios_readdata <= '1' & ioram_rddata_i.readdata;
+            write_state_x <= WS_IDLE;
+        when t_rdmode_cache_notify =>
+            -- return data from RAM + notify
+            ios_readdatavalid <= '1';
+            ios_readdata <= '1' & ioram_rddata_i.readdata;
+            if (ofifo_wrfull = '0') then
+              spi_irq_set_i <= '1';
+              ofifo_wrreq <= '1';
+              ofifo_data_i.command <= t_remote_notify;
+              ofifo_data_i.writedata <= ioram_rddata_i.readdata;
+              write_state_x <= WS_IDLE;
+            end if;
+        when t_rdmode_ipc =>
+            -- read over IPC, send read command to remote
+            ofifo_data_i.command <= t_remote_read;
+            ioram_wrdata_i.pending <= '1';
+            if (ofifo_wrfull = '0') then
+              spi_irq_set_i <= '1';
+              ofifo_wrreq <= '1';
+              ioram_write <= '1';
+              write_state_x <= WS_RD_IPC;
+            end if;
+        end case;
+      end if;
     when WS_RD_IPC =>
       write_state_x <= WS_RD_IPC_2;
     when WS_RD_IPC_2 =>
       if (ioram_rddata_i.pending = '0') then
           ios_readdatavalid <= '1';
           ios_readdata <= '1' & ioram_rddata_i.readdata;
+          write_state_x <= WS_IDLE;
       end if;
 
     end case;
@@ -328,20 +373,24 @@ begin
   --  C3   data     OUT
   --  C4   data     OUT
   --  C5   data     OUT
-  --  C5   data     OUT
   --  C6   data     OUT
+  --  C7   data     OUT
   --
   process(all)
   begin
+    spi_state_x <= spi_state_r;
+
     ofifo_rdreq <= '0';
     ififo_wrreq <= '0';
 
     spi_out_x <= (others => '0');
     spi_oe_x <= '0';
+    spi_irq_reset_i <= '0';
 
     spi_command_x <= spi_command_r;
     spi_address_x <= spi_address_r;
     spi_data_x <= spi_data_r;
+    spi_dvalid_x <= spi_dvalid_r;
 
     ififo_data_i.command <= from_std_logic_vector(spi_command_r(1 downto 0));
     ififo_data_i.address <= spi_address_r;
@@ -353,19 +402,26 @@ begin
       spi_command_x <= spi_data;
       spi_state_x <= SS_C1;
     when SS_C1 =>
+      spi_state_x <= SS_C2;
       spi_address_x(7 downto 4) <= spi_data;
+    when SS_C2 =>
+      spi_address_x(3 downto 0) <= spi_data;
       if( spi_command_r(3) = '1' ) then
+        -- Read from OFIFO
         if (ofifo_rdempty = '0') then
           ofifo_rdreq <= '1';
+          spi_dvalid_x <= '1';
+        else
+          spi_dvalid_x <= '0';
+          spi_irq_reset_i <= '1';
         end if;
-        spi_state_x <= SS_OFIFO_C2;
+        spi_state_x <= SS_OFIFO_C3;
       else
-        spi_state_x <= SS_IFIFO_C2;
+        -- Write to IFIFO
+        spi_state_x <= SS_IFIFO_C3;
       end if;
- 
-    when SS_IFIFO_C2 =>
-      spi_address_x(3 downto 0) <= spi_data;
-      spi_state_x <= SS_IFIFO_C3;
+
+    -- Write to IFIFO
     when SS_IFIFO_C3 =>
       spi_data_x(7 downto 4) <= spi_data;
       spi_state_x <= SS_IFIFO_C4;
@@ -378,28 +434,34 @@ begin
     when SS_IFIFO_C6 =>
       spi_state_x <= SS_IFIFO_C6;
 
-    when SS_OFIFO_C2 =>
-      spi_oe_x <= '1';
-      spi_out_x <= "00" & ofifo_q(17 downto 16);
-      spi_state_x <= SS_OFIFO_C3;
-    when SS_OFIFO_C3 =>
-      spi_oe_x <= '1';
-      spi_out_x <= ofifo_q(15 downto 12);
-      spi_state_x <= SS_OFIFO_C4;
-    when SS_OFIFO_C4 =>
-      spi_oe_x <= '1';
-      spi_out_x <= ofifo_q(11 downto 8);
-      spi_state_x <= SS_OFIFO_C5;
-    when SS_OFIFO_C5 =>
+    -- Read from OFIFO
+    -- Note: Bytes are little endian, bits are msb-first
+    when SS_OFIFO_C3 => -- bits 7..4
       spi_oe_x <= '1';
       spi_out_x <= ofifo_q(7 downto 4);
-      spi_state_x <= SS_OFIFO_C6;
-    when SS_OFIFO_C6 =>
+      spi_state_x <= SS_OFIFO_C4;
+    when SS_OFIFO_C4 => -- bits 3..0
       spi_oe_x <= '1';
       spi_out_x <= ofifo_q(3 downto 0);
+      spi_state_x <= SS_OFIFO_C5;
+    when SS_OFIFO_C5 => -- bits 15..12
+      spi_oe_x <= '1';
+      spi_out_x <= ofifo_q(15 downto 12);
+      spi_state_x <= SS_OFIFO_C6;
+    when SS_OFIFO_C6 => -- bits 11..8
+      spi_oe_x <= '1';
+      spi_out_x <= ofifo_q(11 downto 8);
       spi_state_x <= SS_OFIFO_C7;
-    when SS_OFIFO_C7 =>
-      spi_state_x <= SS_OFIFO_C7;
+    when SS_OFIFO_C7 => -- bits 23..20
+      spi_oe_x <= '1';
+      spi_out_x <= spi_dvalid_r & "000";
+      spi_state_x <= SS_OFIFO_C8;
+    when SS_OFIFO_C8 => -- bits 19..16
+      spi_oe_x <= '1';
+      spi_out_x <= "00" & ofifo_q(17 downto 16);
+      spi_state_x <= SS_OFIFO_C9;
+    when SS_OFIFO_C9 =>
+      spi_state_x <= SS_OFIFO_C9;
  
     end case;
   end process;
@@ -417,15 +479,18 @@ begin
       spi_command_r <= spi_command_x;
       spi_address_r <= spi_address_x;
       spi_data_r <= spi_data_x;
+      spi_dvalid_r <= spi_dvalid_x;
     end if;
   end process;
 
   -- Registers
-  process(clock)
+  process(clock, reset)
   begin
     if (reset = '1') then
+      io_enabled_r <= '0';
       write_state_r <= WS_IDLE;
     elsif rising_edge(clock) then
+      io_enabled_r <= io_enabled_x;
       write_state_r <= write_state_x;
       ios_address_r <= ios_address;
       ios_writedata_r <= ios_writedata;

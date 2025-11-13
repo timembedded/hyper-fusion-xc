@@ -88,11 +88,11 @@ entity top is
     -- ESP
     ESP_GPIO4   : in std_logic; -- cs
     ESP_GPIO5   : in std_logic; -- clk
-    ESP_GPIO6   : inout std_logic; -- d3
-    ESP_GPIO7   : inout std_logic; -- d2
-    ESP_GPIO15  : inout std_logic; -- d1
-    ESP_GPIO16  : inout std_logic; -- d0
-    ESP_GPIO17  : in std_logic;
+    ESP_GPIO6   : inout std_logic; -- d0
+    ESP_GPIO7   : inout std_logic; -- d1
+    ESP_GPIO15  : inout std_logic; -- d2
+    ESP_GPIO16  : inout std_logic; -- d3
+    ESP_GPIO17  : out std_logic; -- irq
     ESP_GPIO18  : in std_logic;
     ESP_GPIO8   : in std_logic;
     ESP_GPIO3   : in std_logic;
@@ -550,10 +550,11 @@ begin
     -- QSPI
     spi_cs_n                   => ESP_GPIO4,
     spi_clk                    => ESP_GPIO5,
-    spi_data(3)                => ESP_GPIO6,
-    spi_data(2)                => ESP_GPIO7,
-    spi_data(1)                => ESP_GPIO15,
-    spi_data(0)                => ESP_GPIO16
+    spi_data(0)                => ESP_GPIO6,
+    spi_data(1)                => ESP_GPIO7,
+    spi_data(2)                => ESP_GPIO15,
+    spi_data(3)                => ESP_GPIO16,
+    spi_irq                    => ESP_GPIO17
   );
 
   --------------------------------------------------------------------

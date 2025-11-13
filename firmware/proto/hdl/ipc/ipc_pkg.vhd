@@ -140,6 +140,7 @@ package body ipc is
   end;
 
   -- Command over fifo host->remote
+  -------------------------------------
 
   function to_std_logic_vector(i : ofifo_command_t) return std_logic_vector is
       variable o : std_logic_vector(1 downto 0);
