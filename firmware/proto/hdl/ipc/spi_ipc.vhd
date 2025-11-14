@@ -29,21 +29,21 @@ end entity spi_ipc;
 
 architecture rtl of spi_ipc is
 
-  type write_state_t is (WS_IDLE, WS_FIFO_READ, WS_WRITE_START, WS_READ_START, WS_RD_IPC, WS_RD_IPC_2);
+  type write_state_t is (WS_IDLE, WS_FIFO_READ, WS_WRITE_START, WS_READ_START);
   signal write_state_x, write_state_r : write_state_t;
   signal io_enabled_x, io_enabled_r : std_logic;
+  signal pending_read_x, pending_read_r : std_logic;
+  signal pending_address_x, pending_address_r : std_logic_vector(7 downto 0);
 
-
-  signal ios_address_r            : std_logic_vector(7 downto 0);
-  signal ios_writedata_r          : std_logic_vector(7 downto 0);
+  signal ios_address_x, ios_address_r     : std_logic_vector(7 downto 0);
+  signal ios_writedata_x, ios_writedata_r : std_logic_vector(7 downto 0);
   
   type ioram_t is array(0 to 255) of std_logic_vector(12 downto 0);
   signal ioram_memory             : ioram_t;
   signal ioram_write              : std_logic;
-  signal ioram_write_address      : std_logic_vector(7 downto 0);
+  signal ioram_address            : std_logic_vector(7 downto 0);
   signal ioram_wrdata             : std_logic_vector(12 downto 0);
   signal ioram_rddata             : std_logic_vector(12 downto 0);
-  signal ioram_read_address       : std_logic_vector(7 downto 0);
   signal ioram_rddata_i           : ioram_data_t;
   signal ioram_wrdata_i           : ioram_data_t;
 
@@ -86,7 +86,7 @@ begin
   spi_data <= spi_out_r when spi_oe_r = '1' else (others => 'Z');
 
   -- IRQ generation
-  process(clock)
+  process(clock, spi_irq_reset_i)
   begin
     if (spi_irq_reset_i = '1') then
       spi_irq <= '0';
@@ -128,9 +128,9 @@ begin
   begin
       if rising_edge(clock) then
           if (ioram_write = '1') then
-              ioram_memory(to_integer(unsigned(ioram_write_address))) <= ioram_wrdata;
+              ioram_memory(to_integer(unsigned(ioram_address))) <= ioram_wrdata;
           end if;
-          ioram_rddata <= ioram_memory(to_integer(unsigned(ioram_read_address)));
+          ioram_rddata <= ioram_memory(to_integer(unsigned(ioram_address)));
       end if;
   end process;
 
@@ -215,16 +215,19 @@ begin
     -- State machine
     write_state_x <= write_state_r;
     io_enabled_x <= io_enabled_r;
+    pending_read_x <= pending_read_r;
+    pending_address_x <= pending_address_r;
 
     -- IO slave bus
     ios_waitrequest <= '1';
     ios_readdata <= "0--------";
     ios_readdatavalid <= '0';
+    ios_address_x <= ios_address_r;
+    ios_writedata_x <= ios_writedata_r;
 
     -- to RAM
     ioram_write <= '0';
-    ioram_read_address <= ios_address;
-    ioram_write_address <= ios_address;
+    ioram_address <= ios_address;
     ioram_wrdata_i <= ioram_rddata_i;
 
     -- from RAM
@@ -246,6 +249,8 @@ begin
     case (write_state_r) is
     when WS_IDLE =>
       ios_waitrequest <= '0';
+      ios_address_x <= ios_address;
+      ios_writedata_x <= ios_writedata;
       if (ios_read = '1') then
           write_state_x <= WS_READ_START;
       elsif (io_enabled_r = '1' and ios_write = '1') then
@@ -256,13 +261,18 @@ begin
       end if;
 
     when WS_FIFO_READ =>
-      ioram_write_address <= ififo_q_i.address;
+      ioram_address <= ififo_q_i.address;
       case (ififo_q_i.command) is
       when t_incmd_update =>
           -- Update data in RAM, clear pending bit
           ioram_write <= '1';
           ioram_wrdata_i.readdata <= ififo_q_i.data;
-          ioram_wrdata_i.pending <= '0';
+          -- IF this matches a pending read, return the data
+          if (pending_read_r = '1' and pending_address_r = ios_address_r) then
+            pending_read_x <= '0';
+            ios_readdatavalid <= '1';
+            ios_readdata <= '1' & ififo_q_i.data;
+          end if;
       when t_incmd_set_properties =>
           -- Write properties
           ioram_write <= '1';
@@ -284,6 +294,7 @@ begin
       write_state_x <= WS_IDLE;
 
     when WS_WRITE_START =>
+      ioram_address <= ios_address_r;
       if (ioram_rddata_i.properties.write_cache = '1') then
           ioram_wrdata_i.readdata <= ios_writedata_r;
           ioram_write <= '1';
@@ -300,6 +311,7 @@ begin
       end if;
 
     when WS_READ_START =>
+      ioram_address <= ios_address_r;
       if (io_enabled_r = '0') then
         -- not enabled, return nothing
         ios_readdatavalid <= '1';
@@ -330,22 +342,15 @@ begin
         when t_rdmode_ipc =>
             -- read over IPC, send read command to remote
             ofifo_data_i.command <= t_remote_read;
-            ioram_wrdata_i.pending <= '1';
+            pending_read_x <= '1';
+            pending_address_x <= ios_address_r;
             if (ofifo_wrfull = '0') then
               spi_irq_set_i <= '1';
               ofifo_wrreq <= '1';
               ioram_write <= '1';
-              write_state_x <= WS_RD_IPC;
+              write_state_x <= WS_IDLE;
             end if;
         end case;
-      end if;
-    when WS_RD_IPC =>
-      write_state_x <= WS_RD_IPC_2;
-    when WS_RD_IPC_2 =>
-      if (ioram_rddata_i.pending = '0') then
-          ios_readdatavalid <= '1';
-          ios_readdata <= '1' & ioram_rddata_i.readdata;
-          write_state_x <= WS_IDLE;
       end if;
 
     end case;
@@ -488,12 +493,15 @@ begin
   begin
     if (reset = '1') then
       io_enabled_r <= '0';
+      pending_read_r <= '0';
       write_state_r <= WS_IDLE;
     elsif rising_edge(clock) then
       io_enabled_r <= io_enabled_x;
+      pending_read_r <= pending_read_x;
+      pending_address_r <= pending_address_x;
       write_state_r <= write_state_x;
-      ios_address_r <= ios_address;
-      ios_writedata_r <= ios_writedata;
+      ios_address_r <= ios_address_x;
+      ios_writedata_r <= ios_writedata_x;
     end if;
   end process;
 
