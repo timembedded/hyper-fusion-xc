@@ -38,12 +38,12 @@ architecture rtl of spi_ipc is
   signal ios_address_x, ios_address_r     : std_logic_vector(7 downto 0);
   signal ios_writedata_x, ios_writedata_r : std_logic_vector(7 downto 0);
   
-  type ioram_t is array(0 to 255) of std_logic_vector(12 downto 0);
+  type ioram_t is array(0 to 255) of std_logic_vector(11 downto 0);
   signal ioram_memory             : ioram_t;
   signal ioram_write              : std_logic;
   signal ioram_address            : std_logic_vector(7 downto 0);
-  signal ioram_wrdata             : std_logic_vector(12 downto 0);
-  signal ioram_rddata             : std_logic_vector(12 downto 0);
+  signal ioram_wrdata             : std_logic_vector(11 downto 0);
+  signal ioram_rddata             : std_logic_vector(11 downto 0);
   signal ioram_rddata_i           : ioram_data_t;
   signal ioram_wrdata_i           : ioram_data_t;
 

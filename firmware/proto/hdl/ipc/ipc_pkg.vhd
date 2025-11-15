@@ -22,7 +22,6 @@ package ipc is
 
   type ioram_data_t is record
       properties      : ioram_properties_t;
-      pending         : std_logic;
       readdata        : std_logic_vector(7 downto 0);
   end record;
 
@@ -33,7 +32,7 @@ package ipc is
     return ioram_properties_t;
   function to_std_logic_vector(i : ioram_data_t)
     return std_logic_vector;
-  function from_std_logic_vector(i : std_logic_vector(12 downto 0))
+  function from_std_logic_vector(i : std_logic_vector(11 downto 0))
     return ioram_data_t;
 
   -- Command over fifo host->remote
@@ -122,18 +121,16 @@ package body ipc is
   end;
 
   function to_std_logic_vector(i : ioram_data_t) return std_logic_vector is
-      variable o : std_logic_vector(12 downto 0);
+      variable o : std_logic_vector(11 downto 0);
   begin
-      o(12) := i.pending;
       o(11 downto 8) := to_std_logic_vector(i.properties);
       o(7 downto 0) := i.readdata;
       return o;
   end;
 
-  function from_std_logic_vector(i : std_logic_vector(12 downto 0)) return ioram_data_t is
+  function from_std_logic_vector(i : std_logic_vector(11 downto 0)) return ioram_data_t is
       variable o : ioram_data_t;
   begin
-      o.pending := i(12);
       o.properties := from_std_logic_vector(i(11 downto 8));
       o.readdata := i(7 downto 0);
       return o;
