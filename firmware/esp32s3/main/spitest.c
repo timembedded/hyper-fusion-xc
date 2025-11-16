@@ -210,6 +210,38 @@ typedef struct {
     };
 } fpga_response_t;
 
+static void fpga_handle_communication(void *args)
+{
+    fpga_handle_t fpga_handle = (fpga_handle_t)args;
+
+    ESP_LOGI(TAG, "Handling interrupts ...");
+    while (1) {
+        uint32_t tick_to_wait = MAX(FPGA_BUSY_TIMEOUT_MS / portTICK_PERIOD_MS, 2);
+        BaseType_t ret = xSemaphoreTake(fpga_handle->interrupt_sem, tick_to_wait);
+        if (ret != pdTRUE) {
+            continue;
+        }else{
+            ESP_LOGI(TAG, "trig");
+        }
+
+        // Get response(s)
+        for(;;) {
+            fpga_response_t resp;
+            ret = spi_fpga_read(fpga_handle, &resp.val);
+            ESP_ERROR_CHECK(ret);
+            if (!resp.valid)
+                break;
+            ESP_LOGI(TAG, "resp %d addr 0x%x data 0x%x", resp.resp, resp.addr, resp.data);
+            if (resp.resp == 2) { // Read response
+                // Send back the data
+                ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_UPDATE, resp.addr, 0x55);
+                ESP_ERROR_CHECK(ret);
+            }
+        }
+    }
+    vTaskDelete(NULL);
+}
+
 void spitest_main(void)
 {
     esp_err_t ret;
@@ -309,29 +341,6 @@ void spitest_main(void)
     ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0x61, io_props_61.val); // Write to RAM, read from RAM, notify
     ESP_ERROR_CHECK(ret);
 
-    ESP_LOGI(TAG, "Handling interrupts ...");
-    while (1) {
-        uint32_t tick_to_wait = MAX(FPGA_BUSY_TIMEOUT_MS / portTICK_PERIOD_MS, 2);
-        BaseType_t ret = xSemaphoreTake(fpga_handle->interrupt_sem, tick_to_wait);
-        if (ret != pdTRUE) {
-            continue;
-        }else{
-            ESP_LOGI(TAG, "trig");
-        }
-
-        // Get response(s)
-        for(;;) {
-            fpga_response_t resp;
-            ret = spi_fpga_read(fpga_handle, &resp.val);
-            ESP_ERROR_CHECK(ret);
-            if (!resp.valid)
-                break;
-            ESP_LOGI(TAG, "resp %d addr 0x%x data 0x%x", resp.resp, resp.addr, resp.data);
-            if (resp.resp == 2) { // Read response
-                // Send back the data
-                ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_UPDATE, resp.addr, 0x55);
-                ESP_ERROR_CHECK(ret);
-            }
-        }
-    }
+    /* Start interrupt handler */
+    xTaskCreate(fpga_handle_communication, "fpga_handle_communication", 4096, fpga_handle, 5, NULL);
 }

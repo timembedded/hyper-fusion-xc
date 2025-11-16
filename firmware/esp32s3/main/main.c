@@ -13,12 +13,14 @@
 #include "nvs_flash.h"
 
 #include "spitest.h"
+#include "i2s.h"
 
 //static const char *TAG = "example";
 
 void app_main(void)
 {
     spitest_main();
+    i2s_main();
 
     while (1) {
         vTaskDelay(100);

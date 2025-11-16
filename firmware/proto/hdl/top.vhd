@@ -86,16 +86,22 @@ entity top is
     SD_MISO     : in std_logic;
 
     -- ESP
-    ESP_GPIO4   : in std_logic; -- cs
-    ESP_GPIO5   : in std_logic; -- clk
-    ESP_GPIO6   : inout std_logic; -- d0
-    ESP_GPIO7   : inout std_logic; -- d1
-    ESP_GPIO15  : inout std_logic; -- d2
-    ESP_GPIO16  : inout std_logic; -- d3
-    ESP_GPIO17  : out std_logic; -- irq
-    ESP_GPIO18  : in std_logic;
-    ESP_GPIO8   : in std_logic;
-    ESP_GPIO3   : in std_logic;
+    ESP_GPIO4   : in std_logic;     -- ipc cs
+    ESP_GPIO5   : in std_logic;     -- ipc clk
+    ESP_GPIO6   : inout std_logic;  -- ipc d0
+    ESP_GPIO7   : inout std_logic;  -- ipc d1
+    ESP_GPIO15  : inout std_logic;  -- ipc d2
+    ESP_GPIO16  : inout std_logic;  -- ipc d3
+    ESP_GPIO17  : out std_logic;    -- ipc irq
+    ESP_GPIO18  : in std_logic;     -- i2s mclk
+    ESP_GPIO8   : in std_logic;     -- i2s bclk
+    ESP_GPIO3   : in std_logic;     -- i2s lrclk
+    ESP_GPIO46  : in std_logic;     -- i2s data esp->fpga
+    ESP_GPIO9   : in std_logic;     -- i2s data fpga->esp
+    ESP_GPIO10  : in std_logic;
+    ESP_GPIO11  : in std_logic;
+    ESP_GPIO12  : in std_logic;
+    ESP_GPIO13  : in std_logic;
 
     -- Free pins on CompactFlash
     HD01        : in std_logic;
@@ -1062,10 +1068,15 @@ begin
     audio_left => audio_output_left_i,
     audio_right => audio_output_right_i,
     audio_ack => audio_ack_i,
-    i2s_mclk => dac_sck,
-    i2s_lrclk => dac_lrck,
-    i2s_sclk => dac_bck,
-    i2s_data => dac_din
+    i2s_mclk => open, --dac_sck,
+    i2s_lrclk => open, --dac_lrck,
+    i2s_sclk => open, --dac_bck,
+    i2s_data => open --dac_din
   );
+
+  dac_sck <= ESP_GPIO18;
+  dac_bck <= ESP_GPIO8;
+  dac_lrck <= ESP_GPIO3;
+  dac_din <= ESP_GPIO46;
 
 end rtl;

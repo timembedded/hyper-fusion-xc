@@ -3,15 +3,18 @@ idf_component_register(
     "main.c"
     "spitest.c"
     "llspi.c"
+    "i2s.c"
+    "dac.c"
   PRIV_REQUIRES
     nvs_flash
     esp_eth
     esp_driver_uart
     esp_driver_gpio
     esp_driver_spi
+    esp_driver_i2s
   INCLUDE_DIRS
     "."
     "include"
+  EMBED_FILES
+    "canon.pcm"
 )
-
-set_target_properties(${COMPONENT_LIB} PROPERTIES COMPILE_FLAGS -Werror)
