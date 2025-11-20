@@ -18,11 +18,12 @@
 #include "esp_check.h"
 #include "dac.h"
 
-#define CONFIG_I2S_MODE_MUSIC   1   /* 0 = echo, 1 = play audio */
+#define CONFIG_I2S_MODE_MUSIC   1   // 1 to play audio
+#define CONFIG_I2S_MODE_ECHO    0   // 1 to enable echo mode
 
 /* Example configurations */
 #define I2S_RECV_BUF_SIZE   (2400)
-#define I2S_SAMPLE_RATE     (16000)
+#define I2S_SAMPLE_RATE     (22050)
 #define I2S_MCLK_MULTIPLE   (384) // If not using 24-bit data width, 256 should be enough
 #define I2S_MCLK_FREQ_HZ    (I2S_SAMPLE_RATE * I2S_MCLK_MULTIPLE)
 
@@ -38,8 +39,6 @@ static const char *TAG = "i2s_dac";
 static const char err_reason[][30] = {"input param is invalid",
                                       "operation timeout"
                                      };
-static i2s_chan_handle_t tx_handle = NULL;
-static i2s_chan_handle_t rx_handle = NULL;
 
 /* Import music file as buffer */
 #if CONFIG_I2S_MODE_MUSIC
@@ -47,7 +46,7 @@ extern const uint8_t music_pcm_start[] asm("_binary_canon_pcm_start");
 extern const uint8_t music_pcm_end[]   asm("_binary_canon_pcm_end");
 #endif
 
-static esp_err_t dac_codec_init(void)
+static esp_err_t dac_codec_init(i2s_chan_handle_t tx_handle, i2s_chan_handle_t rx_handle)
 {
     /* Create data interface with I2S bus handle */
     audio_codec_i2s_cfg_t i2s_cfg = {
@@ -92,11 +91,11 @@ static esp_err_t dac_codec_init(void)
     return ESP_OK;
 }
 
-static esp_err_t i2s_driver_init(void)
+static esp_err_t i2s_driver_init(i2s_chan_handle_t *tx_handle, i2s_chan_handle_t *rx_handle)
 {
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM, I2S_ROLE_MASTER);
     chan_cfg.auto_clear = true; // Auto clear the legacy data in the DMA buffer
-    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_handle, &rx_handle));
+    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, tx_handle, rx_handle));
     i2s_std_config_t std_cfg = {
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(I2S_SAMPLE_RATE),
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
@@ -115,16 +114,17 @@ static esp_err_t i2s_driver_init(void)
     };
     std_cfg.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE;
 
-    ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_handle, &std_cfg));
-    ESP_ERROR_CHECK(i2s_channel_init_std_mode(rx_handle, &std_cfg));
-    ESP_ERROR_CHECK(i2s_channel_enable(tx_handle));
-    ESP_ERROR_CHECK(i2s_channel_enable(rx_handle));
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(*tx_handle, &std_cfg));
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(*rx_handle, &std_cfg));
+    ESP_ERROR_CHECK(i2s_channel_enable(*tx_handle));
+    ESP_ERROR_CHECK(i2s_channel_enable(*rx_handle));
     return ESP_OK;
 }
 
 #if CONFIG_I2S_MODE_MUSIC
 static void i2s_music(void *args)
 {
+    i2s_chan_handle_t tx_handle = args;
     esp_err_t ret = ESP_OK;
     size_t bytes_write = 0;
     uint8_t *data_ptr = (uint8_t *)music_pcm_start;
@@ -137,86 +137,50 @@ static void i2s_music(void *args)
 
     /* Enable the TX channel */
     ESP_ERROR_CHECK(i2s_channel_enable(tx_handle));
-    while (1) {
-        /* Write music to earphone */
-        ret = i2s_channel_write(tx_handle, data_ptr, music_pcm_end - data_ptr, &bytes_write, portMAX_DELAY);
-        if (ret != ESP_OK) {
-            /* Since we set timeout to 'portMAX_DELAY' in 'i2s_channel_write'
-               so you won't reach here unless you set other timeout value,
-               if timeout detected, it means write operation failed. */
-            ESP_LOGE(TAG, "[music] i2s write failed, %s", err_reason[ret == ESP_ERR_TIMEOUT]);
-            abort();
-        }
-        if (bytes_write > 0) {
-            ESP_LOGI(TAG, "[music] i2s music played, %d bytes are written.", bytes_write);
-        } else {
-            ESP_LOGE(TAG, "[music] i2s music play failed.");
-            abort();
-        }
-        data_ptr = (uint8_t *)music_pcm_start;
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-}
 
-#else
-static void i2s_echo(void *args)
-{
-    int *mic_data = malloc(I2S_RECV_BUF_SIZE);
-    if (!mic_data) {
-        ESP_LOGE(TAG, "[echo] No memory for read data buffer");
+    /* Write music to earphone */
+    ret = i2s_channel_write(tx_handle, data_ptr, music_pcm_end - data_ptr, &bytes_write, portMAX_DELAY);
+    if (ret != ESP_OK) {
+        /* Since we set timeout to 'portMAX_DELAY' in 'i2s_channel_write'
+            so you won't reach here unless you set other timeout value,
+            if timeout detected, it means write operation failed. */
+        ESP_LOGE(TAG, "[music] i2s write failed, %s", err_reason[ret == ESP_ERR_TIMEOUT]);
         abort();
     }
-    esp_err_t ret = ESP_OK;
-    size_t bytes_read = 0;
-    size_t bytes_write = 0;
-    ESP_LOGI(TAG, "[echo] Echo start");
-
-    while (1) {
-        memset(mic_data, 0, I2S_RECV_BUF_SIZE);
-        /* Read sample data from mic */
-        ret = i2s_channel_read(rx_handle, mic_data, I2S_RECV_BUF_SIZE, &bytes_read, 1000);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "[echo] i2s read failed, %s", err_reason[ret == ESP_ERR_TIMEOUT]);
-            abort();
-        }
-        /* Write sample data to earphone */
-        ret = i2s_channel_write(tx_handle, mic_data, I2S_RECV_BUF_SIZE, &bytes_write, 1000);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "[echo] i2s write failed, %s", err_reason[ret == ESP_ERR_TIMEOUT]);
-            abort();
-        }
-        if (bytes_read != bytes_write) {
-            ESP_LOGW(TAG, "[echo] %d bytes read but only %d bytes are written", bytes_read, bytes_write);
-        }
+    if (bytes_write > 0) {
+        ESP_LOGI(TAG, "[music] i2s music played, %d bytes are written.", bytes_write);
+    } else {
+        ESP_LOGE(TAG, "[music] i2s music play failed.");
+        abort();
     }
+
     vTaskDelete(NULL);
 }
 #endif
 
-void i2s_main(void)
+void i2s_play_music(i2s_chan_handle_t tx_handle)
+{
+#if CONFIG_I2S_MODE_MUSIC
+    /* Play a piece of music in music mode */
+    xTaskCreate(i2s_music, "i2s_music", 4096, tx_handle, 5, NULL);
+#endif
+}
+
+void i2s_init(i2s_chan_handle_t *tx_handle, i2s_chan_handle_t *rx_handle)
 {
     printf("i2s dac codec start\n-----------------------------\n");
     /* Initialize i2s peripheral */
-    if (i2s_driver_init() != ESP_OK) {
+    if (i2s_driver_init(tx_handle, rx_handle) != ESP_OK) {
         ESP_LOGE(TAG, "i2s driver init failed");
         abort();
     } else {
         ESP_LOGI(TAG, "i2s driver init success");
     }
     /* Initialize i2c peripheral and config dac codec by i2c */
-    if (dac_codec_init() != ESP_OK) {
+    if (dac_codec_init(*tx_handle, *rx_handle) != ESP_OK) {
         ESP_LOGE(TAG, "dac codec init failed");
         abort();
     } else {
         ESP_LOGI(TAG, "dac codec init success");
     }
-
-#if CONFIG_I2S_MODE_MUSIC
-    /* Play a piece of music in music mode */
-    xTaskCreate(i2s_music, "i2s_music", 4096, NULL, 5, NULL);
-#else
-    /* Echo the sound from MIC in echo mode */
-    xTaskCreate(i2s_echo, "i2s_echo", 8192, NULL, 5, NULL);
-#endif
 }

@@ -97,7 +97,7 @@ entity top is
     ESP_GPIO8   : in std_logic;     -- i2s bclk
     ESP_GPIO3   : in std_logic;     -- i2s lrclk
     ESP_GPIO46  : in std_logic;     -- i2s data esp->fpga
-    ESP_GPIO9   : in std_logic;     -- i2s data fpga->esp
+    ESP_GPIO9   : out std_logic;    -- i2s data fpga->esp
     ESP_GPIO10  : in std_logic;
     ESP_GPIO11  : in std_logic;
     ESP_GPIO12  : in std_logic;
@@ -351,9 +351,6 @@ begin
 
   -- ADC
   adc_md <= "00";
-  adc_scki <= '0';
-  adc_bck  <= '0';
-  adc_lrck <= '0';
 
   -- DAC
   dac_xsmt <= '1';
@@ -544,7 +541,7 @@ begin
   port map(
     -- Clock and reset
     clock                      => sysclk,
-    reset                      => slot_reset_i,
+    slot_reset                 => slot_reset_i,
     -- IO bus
     ios_read                   => iom_esp_read_i,
     ios_write                  => iom_esp_write_i,
@@ -1078,5 +1075,10 @@ begin
   dac_bck <= ESP_GPIO8;
   dac_lrck <= ESP_GPIO3;
   dac_din <= ESP_GPIO46;
+
+  adc_scki <= ESP_GPIO18;
+  adc_bck <= ESP_GPIO8;
+  adc_lrck <= ESP_GPIO3;
+  ESP_GPIO9 <= adc_dout;
 
 end rtl;

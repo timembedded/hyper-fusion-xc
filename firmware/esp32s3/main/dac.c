@@ -18,53 +18,6 @@ typedef struct {
     float              hw_gain;
 } audio_codec_dac_t;
 
-typedef struct {
-    audio_codec_dac_t *adc;
-    audio_codec_dac_t *dac;
-} paired_adc_codec_t;
-
-static paired_adc_codec_t paired_adc;
-
-static inline bool dac_is_used(void)
-{
-    if (paired_adc.adc || paired_adc.dac) {
-        return true;
-    }
-    return false;
-}
-
-static inline void dac_add_pair(audio_codec_dac_t *codec)
-{
-    if (codec->cfg.codec_mode & ESP_CODEC_DEV_WORK_MODE_ADC) {
-        if (paired_adc.adc == NULL) {
-            paired_adc.adc = codec;
-            return;
-        }
-    }
-    if (codec->cfg.codec_mode & ESP_CODEC_DEV_WORK_MODE_DAC) {
-        if (paired_adc.dac == NULL) {
-            paired_adc.dac = codec;
-            return;
-        }
-    }
-}
-
-static void dac_remove_pair(audio_codec_dac_t *codec)
-{
-    if (codec->cfg.codec_mode & ESP_CODEC_DEV_WORK_MODE_ADC) {
-        if (paired_adc.adc == codec) {
-            paired_adc.adc = NULL;
-            return;
-        }
-    }
-    if (codec->cfg.codec_mode & ESP_CODEC_DEV_WORK_MODE_DAC) {
-        if (paired_adc.dac == codec) {
-            paired_adc.dac = NULL;
-            return;
-        }
-    }
-}
-
 static int dac_set_mute(const audio_codec_if_t *h, bool mute)
 {
     return ESP_CODEC_DEV_OK;
@@ -102,7 +55,6 @@ static int dac_close(const audio_codec_if_t *h)
         return ESP_CODEC_DEV_INVALID_ARG;
     }
     if (codec->is_open) {
-        dac_remove_pair(codec);
         codec->is_open = false;
     }
     return ESP_CODEC_DEV_OK;

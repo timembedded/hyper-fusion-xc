@@ -182,7 +182,7 @@ set_global_assignment -name AUTO_GLOBAL_CLOCK ON
 set_global_assignment -name AUTO_GLOBAL_REGISTER_CONTROLS ON
 set_global_assignment -name AUTO_GLOBAL_OE ON
 set_global_assignment -name FLEX10K_DEVICE_IO_STANDARD LVTTL/LVCMOS
-set_global_assignment -name SEED 684
+set_global_assignment -name SEED 1
 
 set_global_assignment -name ON_CHIP_BITSTREAM_DECOMPRESSION ON
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0

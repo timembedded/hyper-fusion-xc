@@ -16,9 +16,15 @@
 
 #include "llspi.h"
 
+#include "i2s.h"
+
+#include "bluemsx/IoPort.h"
+#include "bluemsx/AudioMixer.h"
+#include "bluemsx/ay8910.h"
+
 #define MAX(a, b)   (((a) > (b)) ? (a) : (b))
 
-#define FPGA_BUSY_TIMEOUT_MS  1000
+#define FPGA_BUSY_TIMEOUT_MS  100
 
 #define FPGA_CLK_FREQ         (4*1000*1000)   //When powered by 3.3V, FPGA max freq is 1MHz
 #define FPGA_INPUT_DELAY_NS   0 //((1000*1000*1000/FPGA_CLK_FREQ)/2+20)
@@ -53,6 +59,11 @@ struct fpga_context_t {
     fpga_config_t cfg;        ///< Configuration by the caller.
     spi_device_handle_t spi;    ///< SPI device handle
     SemaphoreHandle_t interrupt_sem; ///< Semaphore for ready signal
+    SemaphoreHandle_t mixer_sem;
+    i2s_chan_handle_t tx_handle;
+    i2s_chan_handle_t rx_handle;
+    Mixer *mixer;
+    AY8910* psg;
 };
 
 typedef struct fpga_context_t fpga_context_t;
@@ -133,10 +144,11 @@ cleanup:
 #define FPGA_CMD_LOOPBACK       2
 #define FPGA_CMD_GET_RESPONSE   8
 
-#define FPGA_RESP_NOTIFY        0
-#define FPGA_RESP_WRITE         1
-#define FPGA_RESP_READ          2
-#define FPGA_RESP_LOOPBACK      3
+#define FPGA_RESP_RESET         1
+#define FPGA_RESP_LOOPBACK      2
+#define FPGA_RESP_NOTIFY        4
+#define FPGA_RESP_WRITE         5
+#define FPGA_RESP_READ          6
 
 esp_err_t IRAM_ATTR spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_t addr, uint8_t data)
 {
@@ -162,7 +174,7 @@ esp_err_t IRAM_ATTR spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_
     return err;
 }
 
-esp_err_t spi_fpga_read(fpga_context_t* ctx, uint32_t* out_data)
+esp_err_t IRAM_ATTR spi_fpga_read(fpga_context_t* ctx, uint32_t* out_data)
 {
     spi_transaction_ext_t t = {
         .base.cmd = FPGA_CMD_GET_RESPONSE,
@@ -210,7 +222,147 @@ typedef struct {
     };
 } fpga_response_t;
 
-static void fpga_handle_communication(void *args)
+static fpga_io_properties_t s_io_properties[256];
+
+void io_reset()
+{
+    memset(s_io_properties, 0, sizeof(s_io_properties));
+}
+
+void io_register(uint8_t port, IoPortProperties_t prop, void* ref)
+{
+    fpga_handle_t fpga_handle = (fpga_handle_t)ref;
+
+    if (prop & IoPropRead) {
+        ESP_LOGI(TAG, "Register read port 0x%02x", port);
+        s_io_properties[port].read_mode = 3; // Read via IPC
+    }
+    if (prop & IoPropWrite) {
+        ESP_LOGI(TAG, "Register write port 0x%02x", port);
+        s_io_properties[port].write_ipc = 1; // Write via IPC
+    }
+    int ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, port, s_io_properties[port].val);
+    ESP_ERROR_CHECK(ret);
+}
+
+void io_unregister(uint8_t port, void* ref)
+{
+    fpga_handle_t fpga_handle = (fpga_handle_t)ref;
+
+    ESP_LOGI(TAG, "Unregister port 0x%02x", port);
+    s_io_properties[port].val = 0;
+
+    int ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, port, 0);
+    ESP_ERROR_CHECK(ret);
+}
+
+static int s_sample_rate = 44100;
+
+uint32_t IRAM_ATTR get_sample_count()
+{
+    static uint32_t prev_tick, leftover;
+    uint32_t cur_tick = xTaskGetTickCount();
+    uint32_t count = pdTICKS_TO_MS((cur_tick - prev_tick) * s_sample_rate) + leftover;
+    prev_tick = cur_tick;
+    leftover = count % 1000;
+    count /= 1000;
+    if (count > 4096) {
+        count = 4096;
+    }
+    //ESP_LOGI(TAG, "mix %d, %d, %d", count, leftover, s_sample_rate);
+    return count;
+}
+
+static Int32 IRAM_ATTR i2sMixerWriteCallback(void* arg, Int16* buffer, UInt32 count)
+{
+    fpga_handle_t fpga_handle = (fpga_handle_t)arg;
+    size_t bytes_write = 0;
+    esp_err_t ret;
+
+    ret = i2s_channel_write(fpga_handle->tx_handle, buffer, count * sizeof(Int16), &bytes_write, 0);
+    if (ret != ESP_OK && ret != ESP_ERR_TIMEOUT) {
+        ESP_LOGE(TAG, "[mixer] i2s write failed");
+        abort();
+    }
+
+    return bytes_write / sizeof(Int16);
+}
+
+void reset_peripherals(fpga_handle_t fpga_handle)
+{
+    esp_err_t ret;
+
+    // Stop mixer thread
+    xSemaphoreTake(fpga_handle->mixer_sem, portMAX_DELAY);
+
+    // Global disable
+    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0xff, 0);
+    ESP_ERROR_CHECK(ret);
+
+    // Cleanup
+    if (fpga_handle->psg) {
+        ay8910Destroy(fpga_handle->psg);
+    }
+    if (fpga_handle->mixer) {
+        mixerDestroy(fpga_handle->mixer);
+    }
+
+    // Disable all IO properties
+    for (uint8_t addr = 0; addr < 0xff; addr++) {
+        ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, addr, 0);
+        ESP_ERROR_CHECK(ret);
+    }
+
+    // Global enable
+    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0xff, 0x55);
+    ESP_ERROR_CHECK(ret);
+
+    // Init IoPort manager
+    io_reset();
+    ioPortInit(io_register, io_unregister, fpga_handle);
+
+    // Create mixer
+    fpga_handle->mixer = mixerCreate(get_sample_count);
+
+    // Create sound chips
+    fpga_handle->psg = ay8910Create(fpga_handle->mixer, AY8910_MSX, PSGTYPE_AY8910);
+
+    // Configure mixer
+    mixerSetWriteCallback(fpga_handle->mixer, i2sMixerWriteCallback, fpga_handle, 256);
+    mixerSetMasterVolume(fpga_handle->mixer, 100);
+    mixerEnableMaster(fpga_handle->mixer, 1);
+    mixerSetStereo(fpga_handle->mixer, 0);
+    mixerSetChannelTypeVolume(fpga_handle->mixer, MIXER_CHANNEL_PSG, 100);
+    //mixerSetChannelTypePan(fpga_handle->mixer, Int32 channelType, Int32 pan);
+    mixerEnableChannelType(fpga_handle->mixer, MIXER_CHANNEL_PSG, 1);
+
+    mixerSetEnable(fpga_handle->mixer, 1);
+
+    // Continue mixer thread
+    (void)get_sample_count();
+    xSemaphoreGive(fpga_handle->mixer_sem);
+
+    // Debug
+    //--------
+
+    fpga_io_properties_t io_props_60 = {
+        .read_mode = 2,     // Read from cache + notify
+        .write_ipc = 0,
+        .write_cache = 1,   // Write to cache
+    };
+    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0x60, io_props_60.val); // Write to RAM, read from RAM, notify
+    ESP_ERROR_CHECK(ret);
+
+    fpga_io_properties_t io_props_61 = {
+        .read_mode = 3,     // Read via IPC
+        .write_ipc = 1,     // Write via IPC
+        .write_cache = 0,
+    };
+    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0x61, io_props_61.val); // Write to RAM, read from RAM, notify
+    ESP_ERROR_CHECK(ret);
+}
+
+static void IRAM_ATTR fpga_handle_communication(void *args)
 {
     fpga_handle_t fpga_handle = (fpga_handle_t)args;
 
@@ -220,8 +372,6 @@ static void fpga_handle_communication(void *args)
         BaseType_t ret = xSemaphoreTake(fpga_handle->interrupt_sem, tick_to_wait);
         if (ret != pdTRUE) {
             continue;
-        }else{
-            ESP_LOGI(TAG, "trig");
         }
 
         // Get response(s)
@@ -231,13 +381,43 @@ static void fpga_handle_communication(void *args)
             ESP_ERROR_CHECK(ret);
             if (!resp.valid)
                 break;
-            ESP_LOGI(TAG, "resp %d addr 0x%x data 0x%x", resp.resp, resp.addr, resp.data);
-            if (resp.resp == 2) { // Read response
-                // Send back the data
-                ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_UPDATE, resp.addr, 0x55);
-                ESP_ERROR_CHECK(ret);
+            switch(resp.resp) {
+                case FPGA_RESP_RESET:
+                    ESP_LOGI(TAG, "Reset ...");
+                    reset_peripherals(fpga_handle);
+                    break;
+                case FPGA_RESP_READ:
+                    // IO Read
+                    uint8_t data = ioPortReadPort(resp.addr);
+                    ESP_LOGI(TAG, "IO read 0x%x -> 0x%x", resp.addr, data);
+                    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_UPDATE, resp.addr, data);
+                    ESP_ERROR_CHECK(ret);
+                    break;
+                case FPGA_RESP_WRITE:
+                    // IO Write
+                    //ESP_LOGI(TAG, "IO write 0x%x = 0x%x", resp.addr, resp.data);
+                    ioPortWritePort(resp.addr, resp.data);
+                    break;
+                default:
+                    ESP_LOGW(TAG, "Unknown FPGA response: 0x%x", resp.val);
             }
         }
+    }
+    vTaskDelete(NULL);
+}
+
+static void IRAM_ATTR i2s_mixer(void *args)
+{
+    fpga_handle_t fpga_handle = (fpga_handle_t)args;
+
+    (void)get_sample_count();
+
+    /* Enable the TX channel */
+    while (1) {
+        xSemaphoreTake(fpga_handle->mixer_sem, portMAX_DELAY);
+        mixerSync(fpga_handle->mixer);
+        xSemaphoreGive(fpga_handle->mixer_sem);
+        vTaskDelay(4);
     }
     vTaskDelete(NULL);
 }
@@ -277,6 +457,19 @@ void spitest_main(void)
 
     llspi_setup_device(fpga_handle->spi);
 
+    i2s_init(&fpga_handle->tx_handle, &fpga_handle->rx_handle);
+    //i2s_play_music(fpga_handle->tx_handle);
+
+    // Global disable
+    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0xff, 0);
+    ESP_ERROR_CHECK(ret);
+
+    // Disable all IO properties
+    for (uint8_t addr = 0; addr < 0xff; addr++) {
+        ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, addr, 0);
+        ESP_ERROR_CHECK(ret);
+    }
+
     ESP_LOGI(TAG, "Flushing fifo ...");
     uint32_t rxvalue;
     for(;;) {
@@ -308,39 +501,22 @@ void spitest_main(void)
     ret = spi_fpga_read(fpga_handle, &rxvalue);
     ESP_ERROR_CHECK(ret);
 
-    // Disable all IO properties
-    for (uint8_t addr = 0; addr < 0xff; addr++) {
-        ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, addr, 0);
-        ESP_ERROR_CHECK(ret);
-    }
-
     // Arm interrupt
     xSemaphoreTake(fpga_handle->interrupt_sem, 0);
     gpio_intr_enable(fpga_config.irq_io);
 
-    // Global enable
-    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0xff, 0x55);
-    ESP_ERROR_CHECK(ret);
+    fpga_handle->mixer_sem = xSemaphoreCreateBinary();
+    assert(fpga_handle->mixer_sem != NULL);
+    xSemaphoreGive(fpga_handle->mixer_sem);
 
     // Configure IO
     //--------------------------
 
-    fpga_io_properties_t io_props_60 = {
-        .read_mode = 2,     // Read from cache + notify
-        .write_ipc = 0,
-        .write_cache = 1,   // Write to cache
-    };
-    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0x60, io_props_60.val); // Write to RAM, read from RAM, notify
-    ESP_ERROR_CHECK(ret);
-
-    fpga_io_properties_t io_props_61 = {
-        .read_mode = 3,     // Read via IPC
-        .write_ipc = 1,     // Write via IPC
-        .write_cache = 0,
-    };
-    ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0x61, io_props_61.val); // Write to RAM, read from RAM, notify
-    ESP_ERROR_CHECK(ret);
+    reset_peripherals(fpga_handle);
 
     /* Start interrupt handler */
     xTaskCreate(fpga_handle_communication, "fpga_handle_communication", 4096, fpga_handle, 5, NULL);
+
+    /* Start the audio task */
+    xTaskCreate(i2s_mixer, "i2s_mixer", 4096, fpga_handle, 5, NULL);
 }

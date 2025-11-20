@@ -10,7 +10,7 @@ entity spi_ipc is
   port(
     -- Clock and reset
     clock                       : in  std_logic;
-    reset                       : in  std_logic;
+    slot_reset                  : in  std_logic;
     -- IO bus
     ios_read                    : in  std_logic;
     ios_write                   : in  std_logic;
@@ -29,7 +29,7 @@ end entity spi_ipc;
 
 architecture rtl of spi_ipc is
 
-  type write_state_t is (WS_IDLE, WS_FIFO_READ, WS_WRITE_START, WS_READ_START);
+  type write_state_t is (WS_RESET, WS_IDLE, WS_FIFO_READ, WS_WRITE_START, WS_READ_START);
   signal write_state_x, write_state_r : write_state_t;
   signal io_enabled_x, io_enabled_r : std_logic;
   signal pending_read_x, pending_read_r : std_logic;
@@ -47,22 +47,22 @@ architecture rtl of spi_ipc is
   signal ioram_rddata_i           : ioram_data_t;
   signal ioram_wrdata_i           : ioram_data_t;
 
-  signal ififo_data	              : std_logic_vector (17 downto 0);
+  signal ififo_data	              : std_logic_vector (IFIFO_BIT_WIDTH-1 downto 0);
   signal ififo_rdclk	            : std_logic;
   signal ififo_rdreq	            : std_logic;
   signal ififo_wrclk	            : std_logic;
   signal ififo_wrreq	            : std_logic;
-  signal ififo_q	                : std_logic_vector (17 downto 0);
+  signal ififo_q	                : std_logic_vector (IFIFO_BIT_WIDTH-1 downto 0);
   signal ififo_rdempty	          : std_logic;
   signal ififo_data_i             : ififo_data_t;
   signal ififo_q_i                : ififo_data_t;
 
-  signal ofifo_data	              : std_logic_vector (17 downto 0);
+  signal ofifo_data	              : std_logic_vector (OFIFO_BIT_WIDTH-1 downto 0);
   signal ofifo_rdclk	            : std_logic;
   signal ofifo_rdreq	            : std_logic;
   signal ofifo_wrclk	            : std_logic;
   signal ofifo_wrreq	            : std_logic;
-  signal ofifo_q	                : std_logic_vector (17 downto 0);
+  signal ofifo_q	                : std_logic_vector (OFIFO_BIT_WIDTH-1 downto 0);
   signal ofifo_rdempty	          : std_logic;
   signal ofifo_wrfull	            : std_logic;
   signal ofifo_data_i             : ofifo_data_t;
@@ -143,7 +143,7 @@ begin
 		lpm_numwords => 256,
 		lpm_showahead => "OFF",
 		lpm_type => "dcfifo",
-		lpm_width => 18,
+		lpm_width => IFIFO_BIT_WIDTH,
 		lpm_widthu => 8,
 		overflow_checking => "ON",
 		rdsync_delaypipe => 2,
@@ -154,7 +154,7 @@ begin
 		wrsync_delaypipe => 2
 	)
 	port map (
-		aclr => open,
+		aclr => '0',
 		data => ififo_data,
 		rdclk => ififo_rdclk,
 		rdreq => ififo_rdreq,
@@ -179,7 +179,7 @@ begin
 		lpm_numwords => 256,
 		lpm_showahead => "OFF",
 		lpm_type => "dcfifo",
-		lpm_width => 18,
+		lpm_width => OFIFO_BIT_WIDTH,
 		lpm_widthu => 8,
 		overflow_checking => "ON",
 		rdsync_delaypipe => 2,
@@ -190,7 +190,7 @@ begin
 		wrsync_delaypipe => 2
 	)
 	port map (
-		aclr => open,
+		aclr => '0',
 		data => ofifo_data,
 		rdclk => ofifo_rdclk,
 		rdreq => ofifo_rdreq,
@@ -247,6 +247,14 @@ begin
 
     -- State machine
     case (write_state_r) is
+    when WS_RESET =>
+      ofifo_data_i.command <= t_remote_reset;
+      if (slot_reset = '0' and ofifo_wrfull = '0') then
+        ofifo_wrreq <= '1';
+        spi_irq_set_i <= '1';
+        write_state_x <= WS_IDLE;
+      end if;
+
     when WS_IDLE =>
       ios_waitrequest <= '0';
       ios_address_x <= ios_address;
@@ -463,7 +471,7 @@ begin
       spi_state_x <= SS_OFIFO_C8;
     when SS_OFIFO_C8 => -- bits 19..16
       spi_oe_x <= '1';
-      spi_out_x <= "00" & ofifo_q(17 downto 16);
+      spi_out_x <= '0' & ofifo_q(OFIFO_BIT_WIDTH-1 downto 16);
       spi_state_x <= SS_OFIFO_C9;
     when SS_OFIFO_C9 =>
       spi_state_x <= SS_OFIFO_C9;
@@ -489,19 +497,21 @@ begin
   end process;
 
   -- Registers
-  process(clock, reset)
+  process(clock)
   begin
-    if (reset = '1') then
-      io_enabled_r <= '0';
-      pending_read_r <= '0';
-      write_state_r <= WS_IDLE;
-    elsif rising_edge(clock) then
-      io_enabled_r <= io_enabled_x;
-      pending_read_r <= pending_read_x;
-      pending_address_r <= pending_address_x;
-      write_state_r <= write_state_x;
-      ios_address_r <= ios_address_x;
-      ios_writedata_r <= ios_writedata_x;
+    if rising_edge(clock) then
+      if (slot_reset = '1') then
+        io_enabled_r <= '0';
+        pending_read_r <= '0';
+        write_state_r <= WS_RESET;
+      else
+        io_enabled_r <= io_enabled_x;
+        pending_read_r <= pending_read_x;
+        pending_address_r <= pending_address_x;
+        write_state_r <= write_state_x;
+        ios_address_r <= ios_address_x;
+        ios_writedata_r <= ios_writedata_x;
+      end if;
     end if;
   end process;
 

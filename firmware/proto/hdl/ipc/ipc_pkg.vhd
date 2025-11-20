@@ -9,6 +9,9 @@ use ieee.numeric_std.all;
 
 package ipc is
 
+  constant OFIFO_BIT_WIDTH : integer := 19;
+  constant IFIFO_BIT_WIDTH : integer := 18;
+
   -- Data RAM for properties and readdata
   -------------------------------------------
 
@@ -38,7 +41,7 @@ package ipc is
   -- Command over fifo host->remote
   -------------------------------------
 
-  type ofifo_command_t is (t_remote_notify, t_remote_write, t_remote_read, t_remote_loopback);
+  type ofifo_command_t is (t_remote_reset, t_remote_notify, t_remote_write, t_remote_read, t_remote_loopback, t_remote_invalid);
 
   function to_std_logic_vector(i : ofifo_command_t)
     return std_logic_vector;
@@ -53,7 +56,7 @@ package ipc is
 
   function to_std_logic_vector(i : ofifo_data_t)
     return std_logic_vector;
-  function from_std_logic_vector(i : std_logic_vector(17 downto 0))
+  function from_std_logic_vector(i : std_logic_vector(OFIFO_BIT_WIDTH-1 downto 0))
     return ofifo_data_t;
 
   -- fifo remote->host
@@ -74,7 +77,7 @@ package ipc is
 
   function to_std_logic_vector(i : ififo_data_t)
     return std_logic_vector;
-  function from_std_logic_vector(i : std_logic_vector(16 downto 0))
+  function from_std_logic_vector(i : std_logic_vector(IFIFO_BIT_WIDTH-1 downto 0))
     return ififo_data_t;
 
 end package ipc;
@@ -140,52 +143,60 @@ package body ipc is
   -------------------------------------
 
   function to_std_logic_vector(i : ofifo_command_t) return std_logic_vector is
-      variable o : std_logic_vector(1 downto 0);
+      variable o : std_logic_vector(2 downto 0);
   begin
       case (i) is
-      when t_remote_notify =>
-          o(1 downto 0) := "00";
-      when t_remote_write =>
-          o(1 downto 0) := "01";
-      when t_remote_read =>
-          o(1 downto 0) := "10";
+      when t_remote_reset =>
+          o(2 downto 0) := "001";
       when t_remote_loopback =>
-          o(1 downto 0) := "11";
+          o(2 downto 0) := "010";
+      when t_remote_notify =>
+          o(2 downto 0) := "100";
+      when t_remote_write =>
+          o(2 downto 0) := "101";
+      when t_remote_read =>
+          o(2 downto 0) := "110";
+      when t_remote_invalid =>
+          o(2 downto 0) := "111";
       end case;
       return o;
   end;
 
-  function from_std_logic_vector(i : std_logic_vector(1 downto 0)) return ofifo_command_t is
+  function from_std_logic_vector(i : std_logic_vector(2 downto 0)) return ofifo_command_t is
       variable o : ofifo_command_t;
   begin
-      case (i(1 downto 0)) is
-      when "00" =>
+      case (i(2 downto 0)) is
+      when "001" =>
+          o := t_remote_reset;
+      when "010" =>
+          o := t_remote_loopback;
+      when "100" =>
           o := t_remote_notify;
-      when "01" =>
+      when "101" =>
           o := t_remote_write;
-      when "10" =>
+      when "110" =>
           o := t_remote_read;
       when others =>
-          o := t_remote_loopback;
+          o := t_remote_invalid;
       end case;
       return o;
   end;
 
   function to_std_logic_vector(i : ofifo_data_t) return std_logic_vector is
-      variable o : std_logic_vector(17 downto 0);
+      variable o : std_logic_vector(OFIFO_BIT_WIDTH-1 downto 0);
   begin
       o(7 downto 0) := i.writeaddress;
       o(15 downto 8) := i.writedata;
-      o(17 downto 16) := to_std_logic_vector(i.command);
+      o(18 downto 16) := to_std_logic_vector(i.command);
       return o;
   end;
 
-  function from_std_logic_vector(i : std_logic_vector(17 downto 0)) return ofifo_data_t is
+  function from_std_logic_vector(i : std_logic_vector(OFIFO_BIT_WIDTH-1 downto 0)) return ofifo_data_t is
       variable o : ofifo_data_t;
   begin
       o.writeaddress := i(7 downto 0);
       o.writedata := i(15 downto 8);
-      o.command := from_std_logic_vector(i(17 downto 16));
+      o.command := from_std_logic_vector(i(18 downto 16));
       return o;
   end;
 
@@ -221,7 +232,7 @@ package body ipc is
   end;
 
   function to_std_logic_vector(i : ififo_data_t) return std_logic_vector is
-      variable o : std_logic_vector(17 downto 0);
+      variable o : std_logic_vector(IFIFO_BIT_WIDTH-1 downto 0);
   begin
       o(7 downto 0) := i.address;
       o(15 downto 8) := i.data;
@@ -229,7 +240,7 @@ package body ipc is
       return o;
   end;
 
-  function from_std_logic_vector(i : std_logic_vector(17 downto 0)) return ififo_data_t is
+  function from_std_logic_vector(i : std_logic_vector(IFIFO_BIT_WIDTH-1 downto 0)) return ififo_data_t is
       variable o : ififo_data_t;
   begin
       o.address := i(7 downto 0);

@@ -5,6 +5,9 @@ idf_component_register(
     "llspi.c"
     "i2s.c"
     "dac.c"
+    "bluemsx//AY8910.c"
+    "bluemsx//AudioMixer.c"
+    "bluemsx//IoPort.c"
   PRIV_REQUIRES
     nvs_flash
     esp_eth
