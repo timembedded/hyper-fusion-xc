@@ -8,9 +8,12 @@ idf_component_register(
     "bluemsx//AY8910.c"
     "bluemsx//AudioMixer.c"
     "bluemsx//IoPort.c"
+    "bluemsx//OpenMsxYM2413_2.cpp"
+    "bluemsx//YM2413.cpp"
   PRIV_REQUIRES
     nvs_flash
     esp_eth
+    esp_psram
     esp_driver_uart
     esp_driver_gpio
     esp_driver_spi
@@ -18,6 +21,9 @@ idf_component_register(
   INCLUDE_DIRS
     "."
     "include"
-  EMBED_FILES
-    "canon.pcm"
 )
+
+#  EMBED_FILES
+#    "canon.pcm"
+
+target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error -Wno-error=narrowing -Wno-narrowing -mtext-section-literals)

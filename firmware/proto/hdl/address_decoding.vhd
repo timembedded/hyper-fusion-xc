@@ -431,9 +431,9 @@ begin
     if (ios_address(7 downto 2) = "1111"&"11" and enable_mapper_r = '1') then
       -- 0xFC - 0xFF
       iom_cs_i <= IOM_CS_MAPPER;
-    elsif (ios_address(7 downto 1) = "0111"&"110" and enable_fmpac_r = '1') then
-      -- 0x7C - 0x7D
-      iom_cs_i <= IOM_CS_FMPAC;
+    --elsif (ios_address(7 downto 1) = "0111"&"110" and enable_fmpac_r = '1') then
+    --  -- 0x7C - 0x7D
+    --  iom_cs_i <= IOM_CS_FMPAC;
     elsif (ios_address(7 downto 2) = "1111"&"00") then
       -- 0xF0 - 0xF3
       iom_cs_i <= IOM_CS_MEGA;

@@ -20,7 +20,8 @@
 
 #include "bluemsx/IoPort.h"
 #include "bluemsx/AudioMixer.h"
-#include "bluemsx/ay8910.h"
+#include "bluemsx/AY8910.h"
+#include "bluemsx/YM2413.h"
 
 #define MAX(a, b)   (((a) > (b)) ? (a) : (b))
 
@@ -63,7 +64,8 @@ struct fpga_context_t {
     i2s_chan_handle_t tx_handle;
     i2s_chan_handle_t rx_handle;
     Mixer *mixer;
-    AY8910* psg;
+    AY8910 *psg;
+    YM_2413 *ym2413;
 };
 
 typedef struct fpga_context_t fpga_context_t;
@@ -150,7 +152,7 @@ cleanup:
 #define FPGA_RESP_WRITE         5
 #define FPGA_RESP_READ          6
 
-esp_err_t IRAM_ATTR spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_t addr, uint8_t data)
+esp_err_t spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_t addr, uint8_t data)
 {
     esp_err_t err;
 #if 1
@@ -174,7 +176,7 @@ esp_err_t IRAM_ATTR spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_
     return err;
 }
 
-esp_err_t IRAM_ATTR spi_fpga_read(fpga_context_t* ctx, uint32_t* out_data)
+esp_err_t spi_fpga_read(fpga_context_t* ctx, uint32_t* out_data)
 {
     spi_transaction_ext_t t = {
         .base.cmd = FPGA_CMD_GET_RESPONSE,
@@ -258,7 +260,7 @@ void io_unregister(uint8_t port, void* ref)
 
 static int s_sample_rate = 44100;
 
-uint32_t IRAM_ATTR get_sample_count()
+uint32_t get_sample_count()
 {
     static uint32_t prev_tick, leftover;
     uint32_t cur_tick = xTaskGetTickCount();
@@ -273,7 +275,7 @@ uint32_t IRAM_ATTR get_sample_count()
     return count;
 }
 
-static Int32 IRAM_ATTR i2sMixerWriteCallback(void* arg, Int16* buffer, UInt32 count)
+static Int32 i2sMixerWriteCallback(void* arg, Int16* buffer, UInt32 count)
 {
     fpga_handle_t fpga_handle = (fpga_handle_t)arg;
     size_t bytes_write = 0;
@@ -300,6 +302,9 @@ void reset_peripherals(fpga_handle_t fpga_handle)
     ESP_ERROR_CHECK(ret);
 
     // Cleanup
+    if (fpga_handle->ym2413) {
+        ym2413Destroy(fpga_handle->ym2413);
+    }
     if (fpga_handle->psg) {
         ay8910Destroy(fpga_handle->psg);
     }
@@ -326,6 +331,8 @@ void reset_peripherals(fpga_handle_t fpga_handle)
 
     // Create sound chips
     fpga_handle->psg = ay8910Create(fpga_handle->mixer, AY8910_MSX, PSGTYPE_AY8910);
+    fpga_handle->ym2413 = ym2413Create(fpga_handle->mixer);
+    ym2413Reset(fpga_handle->ym2413);
 
     // Configure mixer
     mixerSetWriteCallback(fpga_handle->mixer, i2sMixerWriteCallback, fpga_handle, 256);
@@ -333,8 +340,10 @@ void reset_peripherals(fpga_handle_t fpga_handle)
     mixerEnableMaster(fpga_handle->mixer, 1);
     mixerSetStereo(fpga_handle->mixer, 0);
     mixerSetChannelTypeVolume(fpga_handle->mixer, MIXER_CHANNEL_PSG, 100);
+    mixerSetChannelTypeVolume(fpga_handle->mixer, MIXER_CHANNEL_MSXMUSIC, 100);
     //mixerSetChannelTypePan(fpga_handle->mixer, Int32 channelType, Int32 pan);
     mixerEnableChannelType(fpga_handle->mixer, MIXER_CHANNEL_PSG, 1);
+    mixerEnableChannelType(fpga_handle->mixer, MIXER_CHANNEL_MSXMUSIC, 1);
 
     mixerSetEnable(fpga_handle->mixer, 1);
 
@@ -362,7 +371,7 @@ void reset_peripherals(fpga_handle_t fpga_handle)
     ESP_ERROR_CHECK(ret);
 }
 
-static void IRAM_ATTR fpga_handle_communication(void *args)
+static void fpga_handle_communication(void *args)
 {
     fpga_handle_t fpga_handle = (fpga_handle_t)args;
 
@@ -406,7 +415,7 @@ static void IRAM_ATTR fpga_handle_communication(void *args)
     vTaskDelete(NULL);
 }
 
-static void IRAM_ATTR i2s_mixer(void *args)
+static void i2s_mixer(void *args)
 {
     fpga_handle_t fpga_handle = (fpga_handle_t)args;
 
@@ -417,7 +426,7 @@ static void IRAM_ATTR i2s_mixer(void *args)
         xSemaphoreTake(fpga_handle->mixer_sem, portMAX_DELAY);
         mixerSync(fpga_handle->mixer);
         xSemaphoreGive(fpga_handle->mixer_sem);
-        vTaskDelay(4);
+        vTaskDelay(1);
     }
     vTaskDelete(NULL);
 }

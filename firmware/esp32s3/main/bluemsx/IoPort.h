@@ -25,8 +25,11 @@
 **
 ******************************************************************************
 */
-#ifndef IO_PORT_H
-#define IO_PORT_H
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "MsxTypes.h"
 
@@ -50,4 +53,6 @@ void  ioPortReset();
 UInt8 ioPortReadPort(UInt16 port);
 void  ioPortWritePort(UInt16 port, UInt8 value);
 
+#ifdef __cplusplus
+}
 #endif

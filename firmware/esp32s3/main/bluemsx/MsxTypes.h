@@ -47,6 +47,9 @@ extern "C" {
 #include <stdint.h>
 #include "esp_attr.h"
 
+// Oversampling config
+#define oversamplingYM2413 1
+
 typedef uint8_t    UInt8;
 typedef uint16_t   UInt16;
 typedef uint32_t   UInt32;

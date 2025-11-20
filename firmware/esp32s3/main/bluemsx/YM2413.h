@@ -1,9 +1,9 @@
 /*****************************************************************************
-** $Source: /cvsroot/bluemsx/blueMSX/Src/Arch/ArchTimer.h,v $
+** $Source: /cvsroot/bluemsx/blueMSX/Src/SoundChips/YM2413.h,v $
 **
-** $Revision: 1.7 $
+** $Revision: 1.8 $
 **
-** $Date: 2008/03/30 18:38:39 $
+** $Date: 2008/03/30 18:38:45 $
 **
 ** More info: http://www.bluemsx.com
 **
@@ -25,22 +25,29 @@
 **
 ******************************************************************************
 */
-#ifndef ARCH_TIMER_H
-#define ARCH_TIMER_H
-
-#include "MsxTypes.h"
+#ifndef YM2413_H
+#define YM2413_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-static inline UInt32 archGetSystemUpTime(UInt32 frequency)
-{
-  return 0;
-}
+#include "MsxTypes.h"
+#include "AudioMixer.h"
+
+/* Type definitions */
+typedef struct YM_2413 YM_2413;
+
+/* Constructor and destructor */
+YM_2413* ym2413Create(Mixer* mixer);
+void ym2413Destroy(YM_2413* ym2413);
+void ym2413WriteAddress(YM_2413* ym2413, UInt8 address);
+void ym2413WriteData(YM_2413* ym2413, UInt8 data);
+void ym2413Reset(YM_2413* ref);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
+
