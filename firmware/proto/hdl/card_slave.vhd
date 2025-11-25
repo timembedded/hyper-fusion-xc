@@ -43,7 +43,6 @@ entity card_bus_slave is
     slt_data          : inout std_logic_vector(7 downto 0);
     slt_bdir_n        : inout std_logic;
     slt_wait          : out std_logic;
-    slt_int_n         : in std_logic;
     slt_m1_n          : in std_logic;
     slt_merq_n        : in std_logic;
 

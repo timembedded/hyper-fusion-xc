@@ -4,6 +4,7 @@
 // The file was originally written by Mitsutaka Okazaki.
 //
 #include "OpenMsxYM2413_2.h"
+#include "esp_heap_caps.h"
 
 #ifdef assert
 #undef assert
@@ -20,18 +21,6 @@ using std::string;
 static const int CLOCK_FREQ = 3579545;
 static const double PI = 3.14159265358979323846;
 
-//int OpenYM2413_2::pmtable[PM_PG_WIDTH];
-//int OpenYM2413_2::amtable[AM_PG_WIDTH];
-//unsigned int OpenYM2413_2::tllTable[16][8][1 << TL_BITS][4];
-//int OpenYM2413_2::rksTable[2][8][2];
-//word OpenYM2413_2::AR_ADJUST_TABLE[1 << EG_BITS];
-//word OpenYM2413_2::fullsintable[PG_WIDTH];
-//word OpenYM2413_2::halfsintable[PG_WIDTH];
-//word* OpenYM2413_2::waveform[2] = {fullsintable, halfsintable};
-//short OpenYM2413_2::dB2LinTab[(2 * DB_MUTE) * 2];
-//unsigned int OpenYM2413_2::dphaseARTable[16][16];
-//unsigned int OpenYM2413_2::dphaseDRTable[16][16];
-//unsigned int OpenYM2413_2::dphaseTable[512][8][16];
 OpenYM2413_2::tables_t *OpenYM2413_2::tables;
 unsigned int OpenYM2413_2::pm_dphase;
 unsigned int OpenYM2413_2::am_dphase;
@@ -331,18 +320,10 @@ OpenYM2413_2::Slot::Slot(bool type)
     reset(type);
 }
 
-#include "esp_log.h"
-#include "esp_heap_caps.h"
-
 void OpenYM2413_2::Slot::reset(bool type_)
 {
     if (tables == nullptr) {
-        //tables = (tables_t*)malloc(sizeof(tables_t));
         tables = (tables_t*)heap_caps_malloc(sizeof(tables_t), MALLOC_CAP_SPIRAM);
-        if (tables == nullptr) {
-            ESP_LOGE("YM2413", "Not enough memory");
-            abort();
-        }
     }
     type = type_;
     sintblIdx = 0;

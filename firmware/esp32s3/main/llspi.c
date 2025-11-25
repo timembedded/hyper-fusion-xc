@@ -303,3 +303,11 @@ esp_err_t SPI_MASTER_ATTR llspi_device_polling_transmit(spi_device_handle_t hand
 
     return ESP_OK;
 }
+
+void llspi_device_wait_ready(spi_device_handle_t handle)
+{
+    spi_host_t *host = handle->host;
+
+    while (!spi_hal_usr_is_done(&host->hal))
+        ;
+}

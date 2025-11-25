@@ -49,6 +49,7 @@ extern "C" {
 
 // Oversampling config
 #define oversamplingYM2413 1
+#define boardGetY8950Oversampling 1
 
 typedef uint8_t    UInt8;
 typedef uint16_t   UInt16;
@@ -98,6 +99,13 @@ typedef UInt16 Pixel;
 #define dbgEnable()
 #define dbgDisable()
 #define dbgPrint()
+
+void boardSetInt(UInt32 irq);
+void boardClearInt(UInt32 irq);
+
+inline UInt32 boardSystemTime() {
+    return 0;
+}
 
 #ifdef __cplusplus
 }

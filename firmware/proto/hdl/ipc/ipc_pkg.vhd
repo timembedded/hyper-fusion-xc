@@ -62,7 +62,7 @@ package ipc is
   -- fifo remote->host
   -------------------------------------
 
-  type ififo_command_t is (t_incmd_update, t_incmd_set_properties, t_incmd_loopback);
+  type ififo_command_t is (t_incmd_loopback, t_incmd_update, t_incmd_set_properties, t_incmd_set_irq);
 
   function to_std_logic_vector(i : ififo_command_t)
     return std_logic_vector;
@@ -207,12 +207,14 @@ package body ipc is
       variable o : std_logic_vector(1 downto 0);
   begin
       case (i) is
-      when t_incmd_update =>
-          o := "00";
-      when t_incmd_set_properties =>
-          o := "01";
       when t_incmd_loopback =>
+          o := "00";
+      when t_incmd_update =>
+          o := "01";
+      when t_incmd_set_properties =>
           o := "10";
+      when t_incmd_set_irq =>
+          o := "11";
       end case;
       return o;
   end;
@@ -222,11 +224,13 @@ package body ipc is
   begin
       case (i) is
       when "00" =>
-          o := t_incmd_update;
+          o := t_incmd_loopback;
       when "01" =>
+          o := t_incmd_update;
+      when "10" =>
           o := t_incmd_set_properties;
       when others =>
-          o := t_incmd_loopback;
+          o := t_incmd_set_irq;
       end case;
       return o;
   end;

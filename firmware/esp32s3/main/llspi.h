@@ -10,3 +10,4 @@ esp_err_t llspi_transmit(spi_device_handle_t handle, uint8_t *send_buffer, uint1
 void llspi_setup_device(spi_device_handle_t handle);
 void llspi_setup_transfer(spi_device_handle_t handle, spi_transaction_t* trans_desc);
 esp_err_t llspi_device_polling_transmit(spi_device_handle_t handle, spi_transaction_t* trans_desc);
+void llspi_device_wait_ready(spi_device_handle_t handle);

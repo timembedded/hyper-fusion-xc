@@ -11,6 +11,7 @@ entity spi_ipc is
     -- Clock and reset
     clock                       : in  std_logic;
     slot_reset                  : in  std_logic;
+    slot_irq                    : out std_logic;
     -- IO bus
     ios_read                    : in  std_logic;
     ios_write                   : in  std_logic;
@@ -68,8 +69,7 @@ architecture rtl of spi_ipc is
   signal ofifo_data_i             : ofifo_data_t;
 
   type spi_state_t is (SS_C0, SS_C1, SS_C2, SS_IFIFO_C3, SS_IFIFO_C4, SS_IFIFO_C5, SS_IFIFO_C6,
-                       SS_OFIFO_C3, SS_OFIFO_C4, SS_OFIFO_C5, SS_OFIFO_C6, SS_OFIFO_C7,
-                       SS_OFIFO_C8, SS_OFIFO_C9);
+                       SS_OFIFO_C3, SS_OFIFO_C4, SS_OFIFO_C5, SS_OFIFO_C6, SS_OFIFO_C7, SS_OFIFO_C8);
   signal spi_state_x, spi_state_r     : spi_state_t;
   signal spi_out_x, spi_out_r         : std_logic_vector(3 downto 0);
   signal spi_oe_x, spi_oe_r           : std_logic;
@@ -79,8 +79,12 @@ architecture rtl of spi_ipc is
   signal spi_data_x, spi_data_r       : std_logic_vector(7 downto 0);
   signal spi_irq_set_i, spi_irq_set_ff : std_logic;
   signal spi_irq_reset_i              : std_logic;
+  signal slot_irq_x, slot_irq_r       : std_logic;
 
 begin
+
+  -- Connect slot IRQ
+  slot_irq <= slot_irq_r;
 
   -- Connect QSPI
   spi_data <= spi_out_r when spi_oe_r = '1' else (others => 'Z');
@@ -244,6 +248,7 @@ begin
 
     -- IRQ
     spi_irq_set_i <= '0';
+    slot_irq_x <= slot_irq_r;
 
     -- State machine
     case (write_state_r) is
@@ -271,33 +276,36 @@ begin
     when WS_FIFO_READ =>
       ioram_address <= ififo_q_i.address;
       case (ififo_q_i.command) is
-      when t_incmd_update =>
-          -- Update data in RAM, clear pending bit
-          ioram_write <= '1';
-          ioram_wrdata_i.readdata <= ififo_q_i.data;
-          -- IF this matches a pending read, return the data
-          if (pending_read_r = '1' and pending_address_r = ios_address_r) then
-            pending_read_x <= '0';
-            ios_readdatavalid <= '1';
-            ios_readdata <= '1' & ififo_q_i.data;
-          end if;
-      when t_incmd_set_properties =>
-          -- Write properties
-          ioram_write <= '1';
-          ioram_wrdata_i.properties <= from_std_logic_vector(ififo_q_i.data(3 downto 0));
-          if (ififo_q_i.address = x"ff") then
-            if (ififo_q_i.data = x"55" ) then
-              io_enabled_x <= '1';
-            else
-              io_enabled_x <= '0';
-            end if;
-          end if;
       when t_incmd_loopback =>
-          ofifo_data_i.command <= t_remote_loopback;
-          ofifo_data_i.writeaddress <= ififo_q_i.address;
-          ofifo_data_i.writedata <= ififo_q_i.data;
-          ofifo_wrreq <= not ofifo_wrfull;
-          spi_irq_set_i <= not ofifo_wrfull;
+        ofifo_data_i.command <= t_remote_loopback;
+        ofifo_data_i.writeaddress <= ififo_q_i.address;
+        ofifo_data_i.writedata <= ififo_q_i.data;
+        ofifo_wrreq <= not ofifo_wrfull;
+        spi_irq_set_i <= not ofifo_wrfull;
+      when t_incmd_update =>
+        -- Update data in RAM, clear pending bit
+        ioram_write <= '1';
+        ioram_wrdata_i.readdata <= ififo_q_i.data;
+        -- IF this matches a pending read, return the data
+        if (pending_read_r = '1' and pending_address_r = ios_address_r) then
+          pending_read_x <= '0';
+          ios_readdatavalid <= '1';
+          ios_readdata <= '1' & ififo_q_i.data;
+        end if;
+      when t_incmd_set_properties =>
+        -- Write properties
+        ioram_write <= '1';
+        ioram_wrdata_i.properties <= from_std_logic_vector(ififo_q_i.data(3 downto 0));
+        if (ififo_q_i.address = x"ff") then
+          if (ififo_q_i.data = x"55" ) then
+            io_enabled_x <= '1';
+          else
+            io_enabled_x <= '0';
+          end if;
+        end if;
+      when t_incmd_set_irq =>
+        -- Set IRQ
+        slot_irq_x <= ififo_q_i.data(0);
       end case;
       write_state_x <= WS_IDLE;
 
@@ -421,8 +429,8 @@ begin
       spi_address_x(3 downto 0) <= spi_data;
       if( spi_command_r(3) = '1' ) then
         -- Read from OFIFO
-        if (ofifo_rdempty = '0') then
-          ofifo_rdreq <= '1';
+        if (ofifo_rdempty = '0' or spi_dvalid_r = '1') then
+          ofifo_rdreq <= not spi_dvalid_r;
           spi_dvalid_x <= '1';
         else
           spi_dvalid_x <= '0';
@@ -472,9 +480,14 @@ begin
     when SS_OFIFO_C8 => -- bits 19..16
       spi_oe_x <= '1';
       spi_out_x <= '0' & ofifo_q(OFIFO_BIT_WIDTH-1 downto 16);
-      spi_state_x <= SS_OFIFO_C9;
-    when SS_OFIFO_C9 =>
-      spi_state_x <= SS_OFIFO_C9;
+      if (ofifo_rdempty = '0') then
+        ofifo_rdreq <= '1';
+        spi_dvalid_x <= '1';
+      else
+        spi_dvalid_x <= '0';
+        spi_irq_reset_i <= '1';
+      end if;
+      spi_state_x <= SS_OFIFO_C3;
  
     end case;
   end process;
@@ -504,6 +517,7 @@ begin
         io_enabled_r <= '0';
         pending_read_r <= '0';
         write_state_r <= WS_RESET;
+        slot_irq_r <= '0';
       else
         io_enabled_r <= io_enabled_x;
         pending_read_r <= pending_read_x;
@@ -511,6 +525,7 @@ begin
         write_state_r <= write_state_x;
         ios_address_r <= ios_address_x;
         ios_writedata_r <= ios_writedata_x;
+        slot_irq_r <= slot_irq_x;
       end if;
     end if;
   end process;

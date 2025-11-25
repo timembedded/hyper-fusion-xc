@@ -105,12 +105,6 @@ entity top is
 
     -- Free pins on CompactFlash
     HD01        : in std_logic;
-    HD15        : in std_logic;
-    HD07        : in std_logic;
-    HD14        : in std_logic;
-    HD06        : in std_logic;
-    HD13        : in std_logic;
-    HD05        : in std_logic;
     HD12        : in std_logic;
     HD04        : in std_logic;
     HD11        : in std_logic;
@@ -180,6 +174,9 @@ architecture rtl of top is
   -- Synchronous resets
   signal slot_reset_i               : std_logic;
   signal soft_reset_i               : std_logic;
+
+  -- Slot IRQ
+  signal slot_irq_i                 : std_logic;
 
   -- Misc card
   signal our_slot_i                 : std_logic_vector(1 downto 0);
@@ -363,6 +360,9 @@ begin
   J2_4 <= '0';
   J2_5 <= '0';
 
+  -- Interrupt to the Z80
+  pSltInt_n <= '0' when slot_irq_i = '1' else 'Z';
+
   -- Make '0' to unlock the Z80 bus, 'Z' to keep Z80 waiting till we're ready
   pSltReady_n <= slot_wait_i;
   pSltWait_n <= 'Z';
@@ -542,6 +542,7 @@ begin
     -- Clock and reset
     clock                      => sysclk,
     slot_reset                 => slot_reset_i,
+    slot_irq                   => slot_irq_i,
     -- IO bus
     ios_read                   => iom_esp_read_i,
     ios_write                  => iom_esp_write_i,
@@ -581,7 +582,6 @@ begin
     slt_data          => pSltDat,
     slt_bdir_n        => pSltBdir_n,
     slt_wait          => slot_wait_i,
-    slt_int_n         => pSltInt_n,
     slt_m1_n          => pSltM1_n,
     slt_merq_n        => pSltMerq_n,
 

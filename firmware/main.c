@@ -1,6 +1,8 @@
-/* SPI test
+/*
+    MSX I/O extender, emulating:
+    - AY8910 - PSG
+    - YM2413 - MSX-MUSIC
 */
-#include "spitest.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +24,7 @@
 #include "bluemsx/AudioMixer.h"
 #include "bluemsx/AY8910.h"
 #include "bluemsx/YM2413.h"
+#include "bluemsx/MsxAudio.h"
 
 #define MAX(a, b)   (((a) > (b)) ? (a) : (b))
 
@@ -59,24 +62,23 @@ typedef struct {
 struct fpga_context_t {
     fpga_config_t cfg;        ///< Configuration by the caller.
     spi_device_handle_t spi;    ///< SPI device handle
+    bool interrupt_enabled;      ///< Whether interrupts are enabled
     SemaphoreHandle_t interrupt_sem; ///< Semaphore for ready signal
     SemaphoreHandle_t mixer_sem;
+    SemaphoreHandle_t spi_sem;
     i2s_chan_handle_t tx_handle;
     i2s_chan_handle_t rx_handle;
     Mixer *mixer;
     AY8910 *psg;
     YM_2413 *ym2413;
+    MsxAudioHndl msxaudio;
+
 };
 
 typedef struct fpga_context_t fpga_context_t;
 typedef struct fpga_context_t* fpga_handle_t;
 
-static IRAM_ATTR void isr_handler(void* arg)
-{
-    fpga_context_t* ctx = (fpga_context_t*)arg;
-    xSemaphoreGive(ctx->interrupt_sem);
-    ESP_EARLY_LOGV(TAG, "interrupt detected");
-}
+static void isr_handler(void* arg);
 
 esp_err_t spi_fpga_init(const fpga_config_t *cfg, fpga_context_t** out_ctx)
 {
@@ -118,13 +120,6 @@ esp_err_t spi_fpga_init(const fpga_config_t *cfg, fpga_context_t** out_ctx)
         goto cleanup;
     }
 
-    gpio_set_intr_type(ctx->cfg.irq_io, GPIO_INTR_POSEDGE);
-    err = gpio_isr_handler_add(ctx->cfg.irq_io, isr_handler, ctx);
-    if (err != ESP_OK) {
-        goto cleanup;
-    }
-    gpio_intr_disable(ctx->cfg.irq_io);
-
     *out_ctx = ctx;
     return ESP_OK;
 
@@ -141,9 +136,10 @@ cleanup:
     return err;
 }
 
-#define FPGA_CMD_UPDATE         0
-#define FPGA_CMD_SET_PROPERTIES 1
-#define FPGA_CMD_LOOPBACK       2
+#define FPGA_CMD_LOOPBACK       0
+#define FPGA_CMD_UPDATE         1
+#define FPGA_CMD_SET_PROPERTIES 2
+#define FPGA_CMD_SET_IRQ        3
 #define FPGA_CMD_GET_RESPONSE   8
 
 #define FPGA_RESP_RESET         1
@@ -152,51 +148,8 @@ cleanup:
 #define FPGA_RESP_WRITE         5
 #define FPGA_RESP_READ          6
 
-esp_err_t spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_t addr, uint8_t data)
-{
-    esp_err_t err;
-#if 1
-    spi_transaction_ext_t t = {
-        .base.cmd = cmd,
-        .base.tx_data[0] = addr,
-        .base.tx_data[1] = data,
-        .base.tx_data[2] = 0xff, // dummy clocks
-        .base.length = 16+8, // +8 for two dummy clocks after the data
-        .base.flags = SPI_TRANS_USE_TXDATA | (SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_VARIABLE_DUMMY | SPI_TRANS_MODE_QIO),
-        .base.user = ctx,
-    };
-    err = llspi_device_polling_transmit(ctx->spi, &t.base);
-    if (err != ESP_OK) {
-        return err;
-    }
-#else
-    llspi_set_address(ctx->spi, addr);
-    err = llspi_transmit(ctx->spi, &data, 8);
-#endif
-    return err;
-}
-
-esp_err_t spi_fpga_read(fpga_context_t* ctx, uint32_t* out_data)
-{
-    spi_transaction_ext_t t = {
-        .base.cmd = FPGA_CMD_GET_RESPONSE,
-        .base.rxlength = 24,
-        .base.flags = SPI_TRANS_USE_RXDATA | (SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_VARIABLE_DUMMY | SPI_TRANS_MODE_QIO),
-        .base.user = ctx,
-        .dummy_bits = 2,    // this turns out to be 'clocks', not 'bits'
-    };
-#if 1
-    esp_err_t err = spi_device_polling_transmit(ctx->spi, &t.base);
-#else
-    esp_err_t err = llspi_device_polling_transmit(ctx->spi, &t.base);
-#endif
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    *out_data = *(uint32_t*)(&t.base.rx_data[0]);
-    return ESP_OK;
-}
+esp_err_t spi_fast_fpga_write(fpga_context_t* fpga_handle, uint8_t cmd, uint8_t addr, uint8_t data);
+esp_err_t spi_fpga_read(fpga_context_t* fpga_handle, uint32_t* out_data);
 
 typedef struct {
     union {
@@ -258,20 +211,34 @@ void io_unregister(uint8_t port, void* ref)
     ESP_ERROR_CHECK(ret);
 }
 
-static int s_sample_rate = 44100;
-
-uint32_t get_sample_count()
+uint32_t get_timer_count_12k5()
 {
     static uint32_t prev_tick, leftover;
     uint32_t cur_tick = xTaskGetTickCount();
-    uint32_t count = pdTICKS_TO_MS((cur_tick - prev_tick) * s_sample_rate) + leftover;
+    uint32_t count = pdTICKS_TO_MS((cur_tick - prev_tick) * 12500) + leftover;
     prev_tick = cur_tick;
     leftover = count % 1000;
     count /= 1000;
     if (count > 4096) {
         count = 4096;
     }
-    //ESP_LOGI(TAG, "mix %d, %d, %d", count, leftover, s_sample_rate);
+    return count;
+}
+
+uint32_t get_sample_count()
+{
+    static uint32_t prev_tick, leftover;
+    uint32_t cur_tick = xTaskGetTickCount();
+    uint32_t count = pdTICKS_TO_MS((cur_tick - prev_tick) * 44100) + leftover;
+    prev_tick = cur_tick;
+    leftover = count % 1000;
+    count /= 1000;
+    if (count > 4096) {
+        count = 4096;
+    }
+    if (count > 500) {
+        ESP_LOGI(TAG, "mix %d", count);
+    }
     return count;
 }
 
@@ -302,6 +269,9 @@ void reset_peripherals(fpga_handle_t fpga_handle)
     ESP_ERROR_CHECK(ret);
 
     // Cleanup
+    if (fpga_handle->msxaudio) {
+        msxaudioDestroy(fpga_handle->msxaudio);
+    }
     if (fpga_handle->ym2413) {
         ym2413Destroy(fpga_handle->ym2413);
     }
@@ -332,18 +302,22 @@ void reset_peripherals(fpga_handle_t fpga_handle)
     // Create sound chips
     fpga_handle->psg = ay8910Create(fpga_handle->mixer, AY8910_MSX, PSGTYPE_AY8910);
     fpga_handle->ym2413 = ym2413Create(fpga_handle->mixer);
-    ym2413Reset(fpga_handle->ym2413);
+    fpga_handle->msxaudio = msxaudioCreate(fpga_handle->mixer);
 
     // Configure mixer
-    mixerSetWriteCallback(fpga_handle->mixer, i2sMixerWriteCallback, fpga_handle, 256);
+    mixerSetWriteCallback(fpga_handle->mixer, i2sMixerWriteCallback, fpga_handle, 128);
     mixerSetMasterVolume(fpga_handle->mixer, 100);
     mixerEnableMaster(fpga_handle->mixer, 1);
-    mixerSetStereo(fpga_handle->mixer, 0);
+    mixerSetStereo(fpga_handle->mixer, 1);
     mixerSetChannelTypeVolume(fpga_handle->mixer, MIXER_CHANNEL_PSG, 100);
     mixerSetChannelTypeVolume(fpga_handle->mixer, MIXER_CHANNEL_MSXMUSIC, 100);
-    //mixerSetChannelTypePan(fpga_handle->mixer, Int32 channelType, Int32 pan);
+    mixerSetChannelTypeVolume(fpga_handle->mixer, MIXER_CHANNEL_MSXAUDIO, 100);
+    mixerSetChannelTypePan(fpga_handle->mixer, MIXER_CHANNEL_PSG, 50);
+    mixerSetChannelTypePan(fpga_handle->mixer, MIXER_CHANNEL_MSXMUSIC, 0);
+    mixerSetChannelTypePan(fpga_handle->mixer, MIXER_CHANNEL_MSXAUDIO, 100);
     mixerEnableChannelType(fpga_handle->mixer, MIXER_CHANNEL_PSG, 1);
     mixerEnableChannelType(fpga_handle->mixer, MIXER_CHANNEL_MSXMUSIC, 1);
+    mixerEnableChannelType(fpga_handle->mixer, MIXER_CHANNEL_MSXAUDIO, 1);
 
     mixerSetEnable(fpga_handle->mixer, 1);
 
@@ -371,6 +345,88 @@ void reset_peripherals(fpga_handle_t fpga_handle)
     ESP_ERROR_CHECK(ret);
 }
 
+static spi_transaction_ext_t read_fifo_trans = {
+    .base.cmd = FPGA_CMD_GET_RESPONSE,
+    .base.rxlength = 24,
+    .base.flags = SPI_TRANS_USE_RXDATA | (SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_VARIABLE_DUMMY | SPI_TRANS_MODE_QIO),
+    .dummy_bits = 2,    // this turns out to be 'clocks', not 'bits'
+};
+static volatile bool read_fifo_busy;
+static volatile uint32_t read_fifo_value;
+
+static spi_transaction_ext_t write_fifo_trans = {
+    .base.tx_data[2] = 0xff, // dummy clocks
+    .base.length = 16+8, // +8 for two dummy clocks after the data
+    .base.flags = SPI_TRANS_USE_TXDATA | (SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_VARIABLE_DUMMY | SPI_TRANS_MODE_QIO),
+};
+
+static IRAM_ATTR void isr_handler(void* arg)
+{
+    fpga_context_t* fpga_handle = (fpga_context_t*)arg;
+
+    gpio_intr_disable(fpga_handle->cfg.irq_io);
+    if (xSemaphoreTake(fpga_handle->spi_sem, 0) == pdTRUE) {
+        esp_err_t ret = spi_device_polling_start(fpga_handle->spi, &read_fifo_trans.base, portMAX_DELAY);
+        ESP_ERROR_CHECK(ret);
+        read_fifo_busy = true;
+        xSemaphoreGive(fpga_handle->spi_sem);
+        xSemaphoreGive(fpga_handle->interrupt_sem);
+    }
+}
+
+esp_err_t spi_fast_fpga_write(fpga_context_t* fpga_handle, uint8_t cmd, uint8_t addr, uint8_t data)
+{
+    esp_err_t ret;
+    if (fpga_handle->interrupt_enabled) {
+        gpio_intr_disable(fpga_handle->cfg.irq_io);
+    }
+    xSemaphoreTake(fpga_handle->spi_sem, portMAX_DELAY);
+
+    // First finish read when busy
+    if (read_fifo_busy) {
+        ret = spi_device_polling_end(fpga_handle->spi, portMAX_DELAY);
+        ESP_ERROR_CHECK(ret);
+        read_fifo_busy = false;
+        read_fifo_value = *(uint32_t*)(&read_fifo_trans.base.rx_data[0]);
+    }
+
+    // Setup write transaction
+    write_fifo_trans.base.cmd = cmd;
+    write_fifo_trans.base.tx_data[0] = addr;
+    write_fifo_trans.base.tx_data[1] = data;
+
+    ret = llspi_device_polling_transmit(fpga_handle->spi, &write_fifo_trans.base);
+    ESP_ERROR_CHECK(ret);
+
+    xSemaphoreGive(fpga_handle->spi_sem);
+    if (fpga_handle->interrupt_enabled) {
+        gpio_intr_enable(fpga_handle->cfg.irq_io);
+    }
+    return ret;
+}
+
+esp_err_t spi_fpga_read(fpga_context_t* fpga_handle, uint32_t* out_data)
+{
+    if (fpga_handle->interrupt_enabled) {
+        gpio_intr_disable(fpga_handle->cfg.irq_io);
+    }
+    xSemaphoreTake(fpga_handle->spi_sem, portMAX_DELAY);
+
+    esp_err_t ret = spi_device_polling_start(fpga_handle->spi, &read_fifo_trans.base, portMAX_DELAY);
+    ESP_ERROR_CHECK(ret);
+
+    ret = spi_device_polling_end(fpga_handle->spi, portMAX_DELAY);
+    ESP_ERROR_CHECK(ret);
+
+    *out_data = *(uint32_t*)(&read_fifo_trans.base.rx_data[0]);
+
+    xSemaphoreGive(fpga_handle->spi_sem);
+    if (fpga_handle->interrupt_enabled) {
+        gpio_intr_enable(fpga_handle->cfg.irq_io);
+    }
+    return ESP_OK;
+}
+
 static void fpga_handle_communication(void *args)
 {
     fpga_handle_t fpga_handle = (fpga_handle_t)args;
@@ -383,55 +439,117 @@ static void fpga_handle_communication(void *args)
             continue;
         }
 
+        xSemaphoreTake(fpga_handle->spi_sem, portMAX_DELAY);
+
         // Get response(s)
         for(;;) {
+            // Get the response
             fpga_response_t resp;
-            ret = spi_fpga_read(fpga_handle, &resp.val);
-            ESP_ERROR_CHECK(ret);
+            if (read_fifo_busy) {
+                ret = spi_device_polling_end(fpga_handle->spi, portMAX_DELAY);
+                ESP_ERROR_CHECK(ret);
+                read_fifo_busy = false;
+                read_fifo_value = *(uint32_t*)(&read_fifo_trans.base.rx_data[0]);
+            }
+            resp.val = read_fifo_value;
             if (!resp.valid)
+                // No more responses
                 break;
+
+            // Prefetch the next response
+            llspi_device_wait_ready(fpga_handle->spi);
+            ret = spi_device_polling_start(fpga_handle->spi, &read_fifo_trans.base, portMAX_DELAY);
+            ESP_ERROR_CHECK(ret);
+            read_fifo_busy = true;
+
+            // Process the response
             switch(resp.resp) {
                 case FPGA_RESP_RESET:
                     ESP_LOGI(TAG, "Reset ...");
+                    xSemaphoreGive(fpga_handle->spi_sem);
                     reset_peripherals(fpga_handle);
+                    xSemaphoreTake(fpga_handle->spi_sem, portMAX_DELAY);
                     break;
                 case FPGA_RESP_READ:
                     // IO Read
+                    xSemaphoreGive(fpga_handle->spi_sem);
                     uint8_t data = ioPortReadPort(resp.addr);
-                    ESP_LOGI(TAG, "IO read 0x%x -> 0x%x", resp.addr, data);
+                    //ESP_LOGI(TAG, "IO read 0x%x -> 0x%x", resp.addr, data);
                     ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_UPDATE, resp.addr, data);
                     ESP_ERROR_CHECK(ret);
+                    xSemaphoreTake(fpga_handle->spi_sem, portMAX_DELAY);
                     break;
                 case FPGA_RESP_WRITE:
                     // IO Write
                     //ESP_LOGI(TAG, "IO write 0x%x = 0x%x", resp.addr, resp.data);
+                    xSemaphoreGive(fpga_handle->spi_sem);
                     ioPortWritePort(resp.addr, resp.data);
+                    xSemaphoreTake(fpga_handle->spi_sem, portMAX_DELAY);
                     break;
                 default:
                     ESP_LOGW(TAG, "Unknown FPGA response: 0x%x", resp.val);
             }
         }
+
+        // Enable interrupt again
+        xSemaphoreGive(fpga_handle->spi_sem);
+        gpio_intr_enable(fpga_handle->cfg.irq_io);
     }
     vTaskDelete(NULL);
 }
+
+static uint32_t s_pending_irq;
+fpga_handle_t s_static_fpga_handle;
+
+void  boardSetInt(uint32_t irq)
+{
+    bool was_pending = (s_pending_irq != 0);
+
+    s_pending_irq |= irq;
+
+    if (s_pending_irq != 0 && !was_pending) {
+        //ESP_LOGI(TAG, "Set INT");
+        BaseType_t ret = ret = spi_fast_fpga_write(s_static_fpga_handle, FPGA_CMD_SET_IRQ, 0, 1); // Set IRQ
+        ESP_ERROR_CHECK(ret);
+    }
+}
+
+void   boardClearInt(uint32_t irq)
+{
+    bool was_pending = (s_pending_irq != 0);
+
+    s_pending_irq &= ~irq;
+
+    if (s_pending_irq == 0 && was_pending) {
+        //ESP_LOGI(TAG, "Reset INT");
+        BaseType_t ret = ret = spi_fast_fpga_write(s_static_fpga_handle, FPGA_CMD_SET_IRQ, 0, 0); // Reset IRQ
+        ESP_ERROR_CHECK(ret);
+    }
+}
+
+void msxaudioTick(UInt32 elapsedTime);
 
 static void i2s_mixer(void *args)
 {
     fpga_handle_t fpga_handle = (fpga_handle_t)args;
 
     (void)get_sample_count();
+    (void)get_timer_count_12k5();
 
     /* Enable the TX channel */
     while (1) {
         xSemaphoreTake(fpga_handle->mixer_sem, portMAX_DELAY);
         mixerSync(fpga_handle->mixer);
+        int elapsed = get_timer_count_12k5();
+        msxaudioTick(elapsed);
         xSemaphoreGive(fpga_handle->mixer_sem);
+
         vTaskDelay(1);
     }
     vTaskDelete(NULL);
 }
 
-void spitest_main(void)
+void ipc_main(void)
 {
     esp_err_t ret;
     ESP_LOGI(TAG, "Initializing bus SPI%d...", SPI_HOST + 1);
@@ -461,6 +579,13 @@ void spitest_main(void)
     ret = spi_fpga_init(&fpga_config, &fpga_handle);
     ESP_ERROR_CHECK(ret);
 
+    // Setup transfer structs
+    write_fifo_trans.base.user = fpga_handle;
+    read_fifo_trans.base.user = fpga_handle;
+
+    // TODO: Make nicer
+    s_static_fpga_handle = fpga_handle;
+
     ret = spi_device_acquire_bus(fpga_handle->spi, portMAX_DELAY);
     ESP_ERROR_CHECK(ret);
 
@@ -468,6 +593,11 @@ void spitest_main(void)
 
     i2s_init(&fpga_handle->tx_handle, &fpga_handle->rx_handle);
     //i2s_play_music(fpga_handle->tx_handle);
+
+    // Mutex for SPI communication
+    fpga_handle->spi_sem = xSemaphoreCreateBinary();
+    assert(fpga_handle->spi_sem != NULL);
+    xSemaphoreGive(fpga_handle->spi_sem);
 
     // Global disable
     ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_PROPERTIES, 0xff, 0);
@@ -510,13 +640,18 @@ void spitest_main(void)
     ret = spi_fpga_read(fpga_handle, &rxvalue);
     ESP_ERROR_CHECK(ret);
 
-    // Arm interrupt
-    xSemaphoreTake(fpga_handle->interrupt_sem, 0);
-    gpio_intr_enable(fpga_config.irq_io);
-
+    // Init mixer mutex
     fpga_handle->mixer_sem = xSemaphoreCreateBinary();
     assert(fpga_handle->mixer_sem != NULL);
     xSemaphoreGive(fpga_handle->mixer_sem);
+
+    // Arm interrupt
+    xSemaphoreTake(fpga_handle->interrupt_sem, 0);
+    fpga_handle->interrupt_enabled = true;
+    gpio_set_intr_type(fpga_config.irq_io, GPIO_INTR_HIGH_LEVEL);
+    ret = gpio_isr_handler_add(fpga_config.irq_io, isr_handler, fpga_handle);
+    ESP_ERROR_CHECK(ret);
+    gpio_intr_enable(fpga_config.irq_io);
 
     // Configure IO
     //--------------------------
@@ -527,5 +662,14 @@ void spitest_main(void)
     xTaskCreate(fpga_handle_communication, "fpga_handle_communication", 4096, fpga_handle, 5, NULL);
 
     /* Start the audio task */
-    xTaskCreate(i2s_mixer, "i2s_mixer", 4096, fpga_handle, 5, NULL);
+    xTaskCreate(i2s_mixer, "i2s_mixer", 4096, fpga_handle, 6, NULL);
+}
+
+void app_main(void)
+{
+    ipc_main();
+
+    while (1) {
+        vTaskDelay(100);
+    }
 }

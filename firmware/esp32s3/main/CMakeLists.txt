@@ -1,7 +1,6 @@
 idf_component_register(
   SRCS
     "main.c"
-    "spitest.c"
     "llspi.c"
     "i2s.c"
     "dac.c"
@@ -10,6 +9,9 @@ idf_component_register(
     "bluemsx//IoPort.c"
     "bluemsx//OpenMsxYM2413_2.cpp"
     "bluemsx//YM2413.cpp"
+    "bluemsx//MsxAudio.cpp"
+    "bluemsx//OpenMsxY8950.cpp"
+    "bluemsx//OpenMsxY8950Adpcm.cpp"
   PRIV_REQUIRES
     nvs_flash
     esp_eth

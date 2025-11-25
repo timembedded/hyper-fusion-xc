@@ -23,7 +23,7 @@
 
 /* Example configurations */
 #define I2S_RECV_BUF_SIZE   (2400)
-#define I2S_SAMPLE_RATE     (22050)
+#define I2S_SAMPLE_RATE     (44100)
 #define I2S_MCLK_MULTIPLE   (384) // If not using 24-bit data width, 256 should be enough
 #define I2S_MCLK_FREQ_HZ    (I2S_SAMPLE_RATE * I2S_MCLK_MULTIPLE)
 
