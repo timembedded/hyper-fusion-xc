@@ -13,7 +13,6 @@
 Y8950::tables_t *Y8950::tables;
 Y8950::Slot::slot_tables_t *Y8950::Slot::slot_tables;
 
-extern "C" UInt32 boardSystemTime();
 extern "C" int switchGetAudio();
 
 //**************************************************//
@@ -412,7 +411,7 @@ void Y8950::callback(uint8_t flag)
     setStatus(flag);
 }
 
-Y8950::Y8950(const string& name_, int sampleRam, const EmuTime& time)
+Y8950::Y8950(const string& name_, int sampleRam)
     : timer1(this), timer2(this), adpcm(*this, name_, sampleRam), /*connector(),*/
           name(name_)
 {
@@ -437,7 +436,7 @@ Y8950::Y8950(const string& name_, int sampleRam, const EmuTime& time)
         ch[i].car.plfo_pm = &lfo_pm;
     }
 
-    reset(time);
+    reset();
 //  registerSound(config);
 //  Debugger::instance().registerDebuggable(name + " regs", *this);
 }
@@ -471,7 +470,7 @@ void Y8950::setSampleRate(int sampleRate, int oversampling)
 }
 
 // Reset whole of opl except patch datas.
-void Y8950::reset(const EmuTime &time)
+void Y8950::reset()
 {
     for (int i=0; i<9; i++)
         ch[i].reset();
@@ -500,7 +499,6 @@ void Y8950::reset(const EmuTime &time)
     noiseB_dphase = 0;
 
     // update the output buffer before changing the register
-//  Mixer::instance().updateStream(time);
     for (int i = 0; i < 0x100; ++i) 
         reg[i] = 0x00;
 
@@ -510,7 +508,7 @@ void Y8950::reset(const EmuTime &time)
     statusMask = 0;
     irq.reset();
     
-    adpcm.reset(time);
+    adpcm.reset();
     setInternalMute(true);  // muted
 }
 
@@ -872,7 +870,7 @@ void Y8950::setInternalVolume(short newVolume)
 //                                                  //
 //**************************************************//
 
-void Y8950::writeReg(uint8_t rg, uint8_t data, const EmuTime& time)
+void Y8950::writeReg(uint8_t rg, uint8_t data)
 {
     //PRT_DEBUG("Y8950 write " << (int)rg << " " << (int)data);
     int stbl[32] = {
@@ -881,14 +879,6 @@ void Y8950::writeReg(uint8_t rg, uint8_t data, const EmuTime& time)
         12,14,16,13,15,17,-1,-1,
         -1,-1,-1,-1,-1,-1,-1,-1
     };
-
-    //TODO only for registers that influence sound
-    //TODO also ADPCM
-    //if (rg>=0x20) {
-        // update the output buffer before changing the register
-//      Mixer::instance().updateStream(time);
-    //}
-//  Mixer::instance().lock();
 
     switch (rg & 0xe0) {
     case 0x00: {
@@ -938,8 +928,8 @@ void Y8950::writeReg(uint8_t rg, uint8_t data, const EmuTime& time)
                 resetStatus(0x78);  // reset all flags
             } else {
                 changeStatusMask((~data) & 0x78);
-                timer1.setStart((data & R04_ST1) != 0, time);
-                timer2.setStart((data & R04_ST2) != 0, time);
+                timer1.setStart((data & R04_ST1) != 0);
+                timer2.setStart((data & R04_ST2) != 0);
                 reg[rg] = data;
             }
             break;
@@ -963,7 +953,7 @@ void Y8950::writeReg(uint8_t rg, uint8_t data, const EmuTime& time)
         case 0x12: // ENVELOP CONTROL
         case 0x1A: // PCM-DATA
             reg[rg] = data;
-            adpcm.writeReg(rg, data, time);
+            adpcm.writeReg(rg, data);
             break;
         
         case 0x15: // DAC-DATA  (bit9-2)
@@ -1119,11 +1109,8 @@ void Y8950::writeReg(uint8_t rg, uint8_t data, const EmuTime& time)
     checkMute();
 }
 
-uint8_t Y8950::readReg(uint8_t rg, const EmuTime &time)
+uint8_t Y8950::readReg(uint8_t rg)
 {
-    // TODO only when necessary
-//  Mixer::instance().updateStream(time);
-    
     uint8_t result;
     switch (rg) {
         case 0x05: // (KEYBOARD IN)

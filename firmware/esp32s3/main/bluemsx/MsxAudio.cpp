@@ -138,7 +138,6 @@ extern "C" void msxaudioDestroy(MsxAudioHndl rm) {
 extern "C" UInt8 msxaudioRead(MsxAudio* msxaudio, UInt16 ioPort)
 {
     UInt8 result = 0xff;
-    UInt32 systemTime = boardSystemTime();
 
     switch (ioPort & 0x01) {
     case 0:
@@ -146,7 +145,7 @@ extern "C" UInt8 msxaudioRead(MsxAudio* msxaudio, UInt16 ioPort)
         break;
     case 1:
         mixerSync(msxaudio->mixer);
-        result = msxaudio->y8950->readReg(msxaudio->registerLatch, systemTime);
+        result = msxaudio->y8950->readReg(msxaudio->registerLatch);
         break;
     }
     return result;
@@ -154,7 +153,6 @@ extern "C" UInt8 msxaudioRead(MsxAudio* msxaudio, UInt16 ioPort)
 
 extern "C" void msxaudioWrite(MsxAudio* msxaudio, UInt16 ioPort, UInt8 value) 
 {
-    UInt32 systemTime = boardSystemTime();
     switch (ioPort & 0x01) {
     case 0:
         //ESP_LOGI("Audio", "Addr %d", value);
@@ -163,7 +161,7 @@ extern "C" void msxaudioWrite(MsxAudio* msxaudio, UInt16 ioPort, UInt8 value)
     case 1:
         //ESP_LOGI("Audio", "Data %d", value);
         mixerSync(msxaudio->mixer);
-        msxaudio->y8950->writeReg(msxaudio->registerLatch, value, systemTime);
+        msxaudio->y8950->writeReg(msxaudio->registerLatch, value);
         break;
     }
 }
@@ -171,7 +169,6 @@ extern "C" void msxaudioWrite(MsxAudio* msxaudio, UInt16 ioPort, UInt8 value)
 extern "C" MsxAudioHndl msxaudioCreate(Mixer* mixer)
 {
     MsxAudio* msxaudio = new MsxAudio;
-    UInt32 systemTime = boardSystemTime();
 
     theMsxAudio = msxaudio;
 
@@ -182,7 +179,7 @@ extern "C" MsxAudioHndl msxaudioCreate(Mixer* mixer)
 
     msxaudio->handle = mixerRegisterChannel(mixer, MIXER_CHANNEL_MSXAUDIO, 0, msxaudioSync, msxaudio);
 
-    msxaudio->y8950 = new Y8950("MsxAudio", 256*1024, systemTime);
+    msxaudio->y8950 = new Y8950("MsxAudio", 256*1024);
     msxaudio->y8950->setSampleRate(AUDIO_SAMPLERATE, boardGetY8950Oversampling);
     msxaudio->y8950->setVolume(32767);
 

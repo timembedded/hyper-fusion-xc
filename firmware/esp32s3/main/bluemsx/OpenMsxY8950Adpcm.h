@@ -21,20 +21,16 @@ public:
     Y8950Adpcm(Y8950& y8950, const string& name, int sampleRam);
     virtual ~Y8950Adpcm();
     
-    void reset(const EmuTime& time);
+    void reset();
     void setSampleRate(int sr);
     bool muted();
-    void writeReg(uint8_t rg, uint8_t data, const EmuTime& time);
+    void writeReg(uint8_t rg, uint8_t data);
     uint8_t readReg(uint8_t rg);
     int calcSample();
     
 private:
-    // Schedulable
-    virtual void executeUntil(const EmuTime& time, int userData);
-    virtual const string& schedName() const;
-
-    void schedule(const EmuTime& time);
-    void unschedule(const EmuTime &time);
+    void schedule();
+    void unschedule();
     int CLAP(int min, int x, int max);
     void restart();
 
@@ -62,10 +58,6 @@ private:
     int sampleStep;
     int volumeWStep;
         
-    EmuTime oldTime;
-    uint64  sysTime;
-    uint64  syncTime;
-    
     uint8_t reg7;
     uint8_t reg15;
 };

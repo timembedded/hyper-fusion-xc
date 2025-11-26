@@ -58,27 +58,20 @@ int Y8950Adpcm::CLAP(int min, int x, int max)
 //                                                          //
 //**********************************************************//
 
-extern "C" UInt32 boardSystemTime();
-
-
 Y8950Adpcm::Y8950Adpcm(Y8950& y8950_, const string& name_, int sampleRam)
     : y8950(y8950_), name(name_ + " RAM"), ramSize(sampleRam), volume(0)
 {
     ramBank = (uint8_t*)heap_caps_malloc(ramSize, MALLOC_CAP_SPIRAM);
     memset(ramBank, 0xFF, ramSize);
-    sysTime = oldTime = boardSystemTime();
-    unschedule(oldTime);
-
-//  Debugger::instance().registerDebuggable(name, *this);
+    unschedule();
 }
 
 Y8950Adpcm::~Y8950Adpcm()
 {
-//  Debugger::instance().unregisterDebuggable(name, *this);
-    delete[] ramBank;
+    heap_caps_free(ramBank);
 }
 
-void Y8950Adpcm::reset(const EmuTime &time)
+void Y8950Adpcm::reset()
 {
     playing = false;
     startAddr = 0;
@@ -89,7 +82,7 @@ void Y8950Adpcm::reset(const EmuTime &time)
     addrMask = (1 << 19) - 1;
     reg7 = 0;
     reg15 = 0;
-    writeReg(0x12, 255, time);  // volume
+    writeReg(0x12, 255);  // volume
     restart();
 }
 
@@ -120,30 +113,15 @@ void Y8950Adpcm::restart()
     volumeWStep = (int)((double)volume * step / MAX_STEP);
 }
 
-void Y8950Adpcm::schedule(const EmuTime &time)
-{
-    if (stopAddr > startAddr && delta != 0) {
-        uint64 samples = stopAddr - playAddr + 1;
-        syncTime = sysTime + 6 * ((samples * (72 << 16) / delta));
-    }
-}
-
-void Y8950Adpcm::unschedule(const EmuTime &time)
-{
-    syncTime = -1;
-}
-
-void Y8950Adpcm::executeUntil(const EmuTime& time, int /*userData*/)
+void Y8950Adpcm::schedule()
 {
 }
 
-const string& Y8950Adpcm::schedName() const
+void Y8950Adpcm::unschedule()
 {
-    static const string name("Y8950Adpcm");
-    return name;
 }
 
-void Y8950Adpcm::writeReg(uint8_t rg, uint8_t data, const EmuTime &time)
+void Y8950Adpcm::writeReg(uint8_t rg, uint8_t data)
 {
     //PRT_DEBUG("Y8950Adpcm: write "<<(int)rg<<" "<<(int)data);
     switch (rg) {
@@ -157,9 +135,9 @@ void Y8950Adpcm::writeReg(uint8_t rg, uint8_t data, const EmuTime &time)
             }
             
             if (playing) {
-                schedule(time);
+                schedule();
             } else {
-                unschedule(time);
+                unschedule();
 //              Scheduler::instance().removeSyncPoint(this);
             }
             break;

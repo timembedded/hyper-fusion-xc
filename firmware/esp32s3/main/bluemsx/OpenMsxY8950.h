@@ -31,7 +31,7 @@ class MsxAudioTimer
         void setValue(uint8_t value) {
             msxaudioTimerSet(id, id * (256 - value));
         }
-        void setStart(bool start, const EmuTime &time) {
+        void setStart(bool start) {
             msxaudioTimerStart(id, start, flag);
         }
 
@@ -264,12 +264,12 @@ class Y8950 : public SoundDevice, public TimerCallback
     };
 
 public:
-    Y8950(const string& name, int sampleRam, const EmuTime& time);
+    Y8950(const string& name, int sampleRam);
     virtual ~Y8950();
 
-    void reset(const EmuTime &time);
-    void writeReg(uint8_t reg, uint8_t data, const EmuTime &time);
-    uint8_t readReg(uint8_t reg, const EmuTime &time);
+    void reset();
+    void writeReg(uint8_t reg, uint8_t data);
+    uint8_t readReg(uint8_t reg);
     uint8_t readStatus();
     
     virtual void setSampleRate(int sampleRate, int Oversampling);

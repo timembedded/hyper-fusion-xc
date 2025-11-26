@@ -39,10 +39,6 @@ void boardSetIrqCallbacks(void (*set_callback)(void* ref), void (*clear_callback
 void boardSetInt(UInt32 irq);
 void boardClearInt(UInt32 irq);
 
-inline UInt32 boardSystemTime() {
-    return 0;
-}
-
 #ifdef __cplusplus
 }
 #endif
