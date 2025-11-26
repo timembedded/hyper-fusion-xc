@@ -3,6 +3,7 @@
 #ifndef __Y8950_HH__
 #define __Y8950_HH__
 
+#include "Board.h"
 #include "OpenMsxY8950Adpcm.h"
 
 extern "C" {

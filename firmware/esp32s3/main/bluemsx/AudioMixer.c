@@ -92,7 +92,8 @@ typedef struct {
 
 struct Mixer
 {
-    GetSamplesToGenerateCallback cbGetCount;
+    GetSamplesToGenerateCallback samplesCallback;
+    void*  samplesRef;
     MixerWriteCallback writeCallback;
     void*  writeRef;
     Int32  fragmentSize;
@@ -289,7 +290,7 @@ Mixer* mixerGetGlobalMixer()
     return globalMixer;
 }
 
-Mixer* mixerCreate(GetSamplesToGenerateCallback callback)
+Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref)
 {
     Mixer* mixer = (Mixer*)calloc(1, sizeof(Mixer));
 
@@ -297,7 +298,8 @@ Mixer* mixerCreate(GetSamplesToGenerateCallback callback)
     assert(mixer->sync_sem != NULL);
     xSemaphoreGive(mixer->sync_sem);
 
-    mixer->cbGetCount = callback;
+    mixer->samplesCallback = callback;
+    mixer->samplesRef = ref;
     mixer->fragmentSize = 512;
     mixer->enable = 1;
     if (globalMixer == NULL) globalMixer = mixer;
@@ -394,7 +396,7 @@ void mixerSync(Mixer* mixer)
     Int32* chBuff[MAX_CHANNELS];
     int i;
 
-    UInt32 count = mixer->cbGetCount();
+    UInt32 count = mixer->samplesCallback(mixer->samplesRef);
 
     if (count == 0 || count > AUDIO_MONO_BUFFER_SIZE) {
         xSemaphoreGive(mixer->sync_sem);

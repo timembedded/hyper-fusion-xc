@@ -4,6 +4,10 @@ idf_component_register(
     "llspi.c"
     "i2s.c"
     "dac.c"
+    "emutimer.c"
+    "fpga.c"
+    "audiodev.c"
+    "bluemsx//Board.c"
     "bluemsx//AY8910.c"
     "bluemsx//AudioMixer.c"
     "bluemsx//IoPort.c"
@@ -22,10 +26,6 @@ idf_component_register(
     esp_driver_i2s
   INCLUDE_DIRS
     "."
-    "include"
 )
-
-#  EMBED_FILES
-#    "canon.pcm"
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error -Wno-error=narrowing -Wno-narrowing -mtext-section-literals)

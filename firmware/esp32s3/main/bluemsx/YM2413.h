@@ -36,6 +36,7 @@ extern "C" {
 #include "AudioMixer.h"
 
 /* Type definitions */
+struct YM_2413;
 typedef struct YM_2413 YM_2413;
 
 /* Constructor and destructor */

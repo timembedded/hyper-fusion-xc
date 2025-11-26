@@ -1,11 +1,11 @@
 /*****************************************************************************
-** File:        msxTypes.h
+** $Source: /cvsroot/bluemsx/blueMSX/Src/Board/Board.h,v $
 **
-** Author:      Daniel Vik
+** $Revision: 1.40 $
 **
-** Description: Type definitions
+** $Date: 2007/03/20 02:30:31 $
 **
-** More info:   www.bluemsx.com
+** More info: http://www.bluemsx.com
 **
 ** Copyright (C) 2003-2006 Daniel Vik
 **
@@ -25,40 +25,27 @@
 **
 ******************************************************************************
 */
-#ifndef BLUEMSX_TYPES
-#define BLUEMSX_TYPES
+#ifndef BOARD_H
+#define BOARD_H
+ 
+#include "MsxTypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+void boardSetIrqCallbacks(void (*set_callback)(void* ref), void (*clear_callback)(void* ref), void* ref);
 
-#ifdef __GNUC__
-#define __int64 long long
-#endif
+void boardSetInt(UInt32 irq);
+void boardClearInt(UInt32 irq);
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <esp_attr.h>
-
-// Oversampling config
-#define oversamplingYM2413 1
-#define boardGetY8950Oversampling 1
-
-typedef uint8_t    UInt8;
-typedef uint16_t   UInt16;
-typedef uint32_t   UInt32;
-typedef uint64_t   UInt64;
-typedef int8_t     Int8;
-typedef int16_t    Int16;
-typedef int32_t    Int32;
-
-#define dbgEnable()
-#define dbgDisable()
-#define dbgPrint()
+inline UInt32 boardSystemTime() {
+    return 0;
+}
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* BOARD_H */
+

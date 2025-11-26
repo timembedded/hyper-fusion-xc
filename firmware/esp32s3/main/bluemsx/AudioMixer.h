@@ -61,14 +61,14 @@ typedef enum {
 
 typedef Int32* (*MixerUpdateCallback)(void*, UInt32);
 typedef Int32 (*MixerWriteCallback)(void*, Int16*, UInt32);
-typedef UInt32 (*GetSamplesToGenerateCallback)(void);
+typedef UInt32 (*GetSamplesToGenerateCallback)(void *ref);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Constructor and destructor */
-Mixer* mixerCreate(GetSamplesToGenerateCallback callback);
+Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref);
 void mixerDestroy(Mixer* mixer);
 
 Mixer* mixerGetGlobalMixer();

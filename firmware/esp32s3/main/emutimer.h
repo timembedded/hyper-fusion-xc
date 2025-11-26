@@ -1,5 +1,5 @@
 /*****************************************************************************
-**  I2S output handling
+**  Emulation timer functionality
 **
 **  Copyright (C) 2025 Tim Brugman
 **
@@ -20,8 +20,21 @@
 ******************************************************************************/
 #pragma once
 
-#include <driver/i2s_std.h>
+#include <stdint.h>
 
-void i2s_init(i2s_chan_handle_t *tx_handle, i2s_chan_handle_t *rx_handle);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void i2s_play_music(i2s_chan_handle_t tx_handle);
+struct emutimer_t;
+typedef struct emutimer_t* emutimer_handle_t;
+
+emutimer_handle_t timer_create(uint32_t frequency);
+void timer_destroy(emutimer_handle_t timer);
+
+void timer_reset(emutimer_handle_t timer);
+uint32_t timer_get_duration(emutimer_handle_t timer);
+
+#ifdef __cplusplus
+}
+#endif

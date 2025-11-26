@@ -1,5 +1,8 @@
 /*****************************************************************************
-**  I2S output handling
+**  MSX Audio Device Emulation
+**
+**    AY8910 - PSG
+**    YM2413 - MSX-MUSIC
 **
 **  Copyright (C) 2025 Tim Brugman
 **
@@ -20,8 +23,25 @@
 ******************************************************************************/
 #pragma once
 
-#include <driver/i2s_std.h>
+#include <stdint.h>
 
-void i2s_init(i2s_chan_handle_t *tx_handle, i2s_chan_handle_t *rx_handle);
+#include "fpga.h"
 
-void i2s_play_music(i2s_chan_handle_t tx_handle);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct audiodev_t;
+typedef struct audiodev_t* audiodev_handle_t;
+
+typedef uint32_t (*write_samples_callback_t)(void* arg, int16_t* buffer, uint32_t count);
+
+audiodev_handle_t audiodev_create(fpga_handle_t fpga_handle, write_samples_callback_t callback);
+void audiodev_destroy(audiodev_handle_t timer);
+
+void audiodev_stop(audiodev_handle_t fpga_handle);
+void audiodev_start(audiodev_handle_t fpga_handle);
+
+#ifdef __cplusplus
+}
+#endif
