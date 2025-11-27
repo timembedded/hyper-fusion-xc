@@ -1,9 +1,9 @@
 /*****************************************************************************
-** $Source: /cvsroot/bluemsx/blueMSX/Src/Board/Board.h,v $
+** $Source: /cvsroot/bluemsx/blueMSX/Src/SoundChips/Y8950.h,v $
 **
-** $Revision: 1.40 $
+** $Revision: 1.10 $
 **
-** $Date: 2007/03/20 02:30:31 $
+** $Date: 2008/03/30 18:38:45 $
 **
 ** More info: http://www.bluemsx.com
 **
@@ -25,24 +25,23 @@
 **
 ******************************************************************************
 */
-#ifndef BOARD_H
-#define BOARD_H
- 
+#ifndef Y8950_H
+#define Y8950_H
+
 #include "MsxTypes.h"
-#include <freertos/FreeRTOS.h>
+#include "AudioMixer.h"
 
-#ifdef __cplusplus
-extern "C" {
+/* Type definitions */
+typedef struct Y8950 Y8950;
+
+/* Constructor and destructor */
+Y8950* y8950Create(Mixer* mixer);
+void y8950Destroy(Y8950* y8950);
+void y8950Reset(Y8950* y8950);
+void y8950LoadState(Y8950* y8950);
+void y8950SaveState(Y8950* y8950);
+UInt8 y8950Peek(Y8950* y8950, UInt16 ioPort);
+UInt8 y8950Read(Y8950* y8950, UInt16 ioPort);
+void y8950Write(Y8950* y8950, UInt16 ioPort, UInt8 value);
+
 #endif
-
-void boardSetIrqCallbacks(void (*set_callback)(void* ref), void (*clear_callback)(void* ref), void* ref);
-
-void boardSetInt(UInt32 irq);
-void boardClearInt(UInt32 irq);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* BOARD_H */
-

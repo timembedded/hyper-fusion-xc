@@ -13,9 +13,10 @@ idf_component_register(
     "bluemsx//IoPort.c"
     "bluemsx//OpenMsxYM2413_2.cpp"
     "bluemsx//YM2413.cpp"
-    "bluemsx//MsxAudio.cpp"
-    "bluemsx//OpenMsxY8950.cpp"
-    "bluemsx//OpenMsxY8950Adpcm.cpp"
+    "bluemsx//Fmopl.c"
+    "bluemsx//Y8950.c"
+    "bluemsx//Ymdeltat.c"
+    "bluemsx//MidiIO.c"
   PRIV_REQUIRES
     nvs_flash
     esp_eth

@@ -35,12 +35,6 @@
 #include "i2s.h"
 #include "emutimer.h"
 
-#include "bluemsx/IoPort.h"
-#include "bluemsx/AudioMixer.h"
-#include "bluemsx/AY8910.h"
-#include "bluemsx/YM2413.h"
-#include "bluemsx/MsxAudio.h"
-
 #define MAX(a, b)   (((a) > (b)) ? (a) : (b))
 
 #define FPGA_BUSY_TIMEOUT_MS  100

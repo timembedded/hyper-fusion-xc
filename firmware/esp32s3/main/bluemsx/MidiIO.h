@@ -1,13 +1,13 @@
 /*****************************************************************************
-** $Source: /cvsroot/bluemsx/blueMSX/Src/SoundChips/MsxAudio.h,v $
+** $Source: /cvsroot/bluemsx/blueMSX/Src/IoDevice/MidiIO.h,v $
 **
 ** $Revision: 1.7 $
 **
-** $Date: 2008/03/30 18:38:45 $
+** $Date: 2008/03/31 19:42:19 $
 **
 ** More info: http://www.bluemsx.com
 **
-** Copyright (C) 2003-2006 Daniel Vik
+** Copyright (C) 2003-2006 Daniel Vik, Tomas Karlsson
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -25,25 +25,36 @@
 **
 ******************************************************************************
 */
-#ifndef MSXAUDIO_H
-#define MSXAUDIO_H
+#ifndef MIDI_IO_H
+#define MIDI_IO_H
+
+#include "MsxTypes.h"
+
+typedef struct MidiIO MidiIO;
+
+typedef enum { MIDI_NONE, MIDI_FILE, MIDI_HOST } MidiType;
+
+typedef void (*MidiIOCb)(void*, UInt8*, UInt32);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "MsxTypes.h"
-#include "AudioMixer.h"
+MidiIO* midiIoCreate(MidiIOCb cb, void* ref);
+void midiIoDestroy(MidiIO* midiIo);
 
-typedef void* MsxAudioHndl;
+void midiIoTransmit(MidiIO* midiIo, UInt8 value);
 
-/* Constructor and destructor */
-MsxAudioHndl msxaudioCreate(Mixer* mixer);
-void msxaudioDestroy(MsxAudioHndl rm);
+void midiIoSetMidiInType(MidiType type, const char* fileName);
+void midiIoSetMidiOutType(MidiType type, const char* fileName);
 
-void msxaudioTick(UInt32 elapsedTime);
 
-Int32* msxaudioSync(void* ref, UInt32 count);
+MidiIO* ykIoCreate();
+void ykIoDestroy(MidiIO* ykIo);
+
+int ykIoGetKeyState(MidiIO* midiIo, int key);
+
+void ykIoSetMidiInType(MidiType type, const char* fileName);
 
 #ifdef __cplusplus
 }
