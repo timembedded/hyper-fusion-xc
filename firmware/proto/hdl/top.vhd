@@ -19,6 +19,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.common.all;
 
 entity top is
   port(
@@ -177,7 +178,7 @@ architecture rtl of top is
 
   -- Slot IRQ
   signal slot_irq_i                 : std_logic;
-
+  
   -- Misc card
   signal our_slot_i                 : std_logic_vector(1 downto 0);
   signal enable_shadow_ram_i        : std_logic;
@@ -242,6 +243,15 @@ architecture rtl of top is
   signal iom_esp_readdata_i           : std_logic_vector(8 downto 0);
   signal iom_esp_readdatavalid_i      : std_logic;
   signal iom_esp_waitrequest_i        : std_logic;
+
+  -- Avalon bus: audiodev
+  signal iom_audiodev_read_i          : std_logic;
+  signal iom_audiodev_write_i         : std_logic;
+  signal iom_audiodev_address_i       : std_logic_vector(7 downto 0);
+  signal iom_audiodev_writedata_i     : std_logic_vector(7 downto 0);
+  signal iom_audiodev_readdata_i      : std_logic_vector(8 downto 0);
+  signal iom_audiodev_readdatavalid_i : std_logic;
+  signal iom_audiodev_waitrequest_i   : std_logic;
 
   -- Avalon bus: Memory mapper
   signal mem_mapper_read_i          : std_logic;
@@ -341,6 +351,15 @@ architecture rtl of top is
   signal audio_output_left_i        : std_logic_vector(15 downto 0);
   signal audio_output_right_i       : std_logic_vector(15 downto 0);
 
+  -- I2S
+  signal i2s_sclk_i                 : std_logic;
+  signal i2s_bclk_i                 : std_logic;
+  signal i2s_lrclk_i                : std_logic;
+  signal i2s_data_i                 : std_logic;
+  signal audio_strobe_i             : std_logic;
+  signal audio_sample_i             : std_logic_vector(15 downto 0);
+  signal audio_data_r               : std_logic_vector(15 downto 0);
+
   -- Debug
   signal count                      : unsigned(1 downto 0) := "00";
 
@@ -393,7 +412,7 @@ begin
 
   i_clock_reset : entity work.generate_clock_enables(rtl)
   generic map(
-    FREQ_MHZ => 100
+    FREQ_MHZ => C_SYSTEM_CLOCK_KHZ / 1000
   )
   port map
   (
@@ -534,23 +553,91 @@ begin
   );
 
   --------------------------------------------------------------------
+  -- I2S decoder
+  --------------------------------------------------------------------
+
+  i_i2s_decoder : entity work.i2s_decoder(rtl)
+  port map
+  (
+    -- System clock
+    clock               => sysclk,
+    reset               => slot_reset_i,
+
+    -- i2s interface
+    i2s_bclk            => i2s_bclk_i,
+    i2s_lrclk           => i2s_lrclk_i,
+    i2s_data            => i2s_data_i,
+
+    -- Decoded output
+    audio_strobe_left   => audio_strobe_i,
+    audio_strobe_right  => open,
+    audio_sample_left   => audio_sample_i,
+    audio_sample_right  => open
+  );
+
+  process(sysclk)
+  begin
+    if rising_edge(sysclk) then
+      if (slot_reset_i = '1') then
+        audio_data_r <= (others => '0');
+      else
+        if (audio_strobe_i = '1') then
+          audio_data_r <= audio_sample_i;
+        end if;
+      end if;
+    end if;
+  end process;
+
+  --------------------------------------------------------------------
   -- ESP32 interface
   --------------------------------------------------------------------
+
+  i_audiodev : entity work.audiodev(rtl)
+  port map(
+    -- clock and reset
+    clock              => sysclk,
+    slot_reset         => slot_reset_i,
+    clkena_3m58        => clkena_3m58_i,
+
+    -- IRQ
+    irq                => slot_irq_i,
+
+    -- Audio data
+    audio_data         => audio_data_r,
+
+    -- io slave port   =>
+    ios_read           => iom_esp_read_i,
+    ios_write          => iom_esp_write_i,
+    ios_address        => iom_esp_address_i,
+    ios_writedata      => iom_esp_writedata_i,
+    ios_readdata       => iom_esp_readdata_i,
+    ios_readdatavalid  => iom_esp_readdatavalid_i,
+    ios_waitrequest    => iom_esp_waitrequest_i,
+
+    -- io master port  =>
+    iom_read           => iom_audiodev_read_i,
+    iom_write          => iom_audiodev_write_i,
+    iom_address        => iom_audiodev_address_i,
+    iom_writedata      => iom_audiodev_writedata_i,
+    iom_readdata       => iom_audiodev_readdata_i,
+    iom_readdatavalid  => iom_audiodev_readdatavalid_i,
+    iom_waitrequest    => iom_audiodev_waitrequest_i
+  );
 
   esp32 : entity work.spi_ipc(rtl)
   port map(
     -- Clock and reset
     clock                      => sysclk,
     slot_reset                 => slot_reset_i,
-    slot_irq                   => slot_irq_i,
+    slot_irq                   => open, --slot_irq_i,
     -- IO bus
-    ios_read                   => iom_esp_read_i,
-    ios_write                  => iom_esp_write_i,
-    ios_address                => iom_esp_address_i,
-    ios_writedata              => iom_esp_writedata_i,
-    ios_readdata               => iom_esp_readdata_i,
-    ios_readdatavalid          => iom_esp_readdatavalid_i,
-    ios_waitrequest            => iom_esp_waitrequest_i,
+    ios_read                   => iom_audiodev_read_i,
+    ios_write                  => iom_audiodev_write_i,
+    ios_address                => iom_audiodev_address_i,
+    ios_writedata              => iom_audiodev_writedata_i,
+    ios_readdata               => iom_audiodev_readdata_i,
+    ios_readdatavalid          => iom_audiodev_readdatavalid_i,
+    ios_waitrequest            => iom_audiodev_waitrequest_i,
     -- QSPI
     spi_cs_n                   => ESP_GPIO4,
     spi_clk                    => ESP_GPIO5,
@@ -1071,14 +1158,19 @@ begin
     i2s_data => open --dac_din
   );
 
-  dac_sck <= ESP_GPIO18;
-  dac_bck <= ESP_GPIO8;
-  dac_lrck <= ESP_GPIO3;
-  dac_din <= ESP_GPIO46;
+  i2s_sclk_i <= ESP_GPIO18;
+  i2s_bclk_i <= ESP_GPIO8;
+  i2s_lrclk_i <= ESP_GPIO3;
+  i2s_data_i <= ESP_GPIO46;
 
-  adc_scki <= ESP_GPIO18;
-  adc_bck <= ESP_GPIO8;
-  adc_lrck <= ESP_GPIO3;
+  dac_sck <= i2s_sclk_i;
+  dac_bck <= i2s_bclk_i;
+  dac_lrck <= i2s_lrclk_i;
+  dac_din <= i2s_data_i;
+
+  adc_scki <= i2s_sclk_i;
+  adc_bck <= i2s_bclk_i;
+  adc_lrck <= i2s_lrclk_i;
   ESP_GPIO9 <= adc_dout;
 
 end rtl;

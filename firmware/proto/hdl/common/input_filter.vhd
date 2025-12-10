@@ -28,9 +28,9 @@ USE ieee.std_logic_1164.all;
 -----
 ENTITY input_filter IS
 GENERIC (
-  CLOCKS      : integer   := 2;
-  DATA_WIDTH  : integer   := 1;
-  RESET_STATE : std_logic := '0'
+  FILTER_CLOCKS : integer   := 1;
+  DATA_WIDTH    : integer   := 1;
+  RESET_STATE   : std_logic := '0'
 );
 PORT
 (
@@ -55,13 +55,12 @@ ARCHITECTURE rtl OF input_filter IS
 -----
 
   -- Meta stability filter
-  type input_sync_t is array (0 to 2) of std_logic_vector(DATA_WIDTH-1 downto 0);
-  signal input_sync_r                   : input_sync_t := (others => (others => RESET_STATE));
-  signal sample_i                       : std_logic_vector(DATA_WIDTH-1 downto 0);
+  signal input_sync_c1                  : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => RESET_STATE);
+  signal input_sync_c2                  : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => RESET_STATE);
 
   -- Digital filter
   signal filter_state_x, filter_state_r : std_logic_vector(DATA_WIDTH-1 downto 0) := (others => RESET_STATE);
-  type filter_count_t is array (0 to DATA_WIDTH-1) of integer range 0 to CLOCKS-1;
+  type filter_count_t is array (0 to DATA_WIDTH-1) of integer range 0 to FILTER_CLOCKS-1;
   signal filter_count_x, filter_count_r : filter_count_t;
 
 -----
@@ -70,39 +69,30 @@ ARCHITECTURE rtl OF input_filter IS
 BEGIN
 
   -- Connect output
-  output <= filter_state_r;
+  output <= filter_state_r when FILTER_CLOCKS > 1 else input_sync_c2;
 
   ---------------------------------------------------------------------
   -- Sample input signal
   -- Since this is a asynchronous signal it must be clocked trough
   -- at least two flip-flops to prevent meta stability issues.
   ---------------------------------------------------------------------
-  process(clk, reset, input_sync_r)
-  begin
-    if( reset = '1' ) then
-      input_sync_r <= (others => (others => RESET_STATE));
-    elsif( clk = '1' and clk'event ) then
-      input_sync_r(2) <= input;
-      input_sync_r(1) <= input_sync_r(2);
-      input_sync_r(0) <= input_sync_r(1);
-    end if;
-    sample_i <= input_sync_r(0);
-  end process;
+  input_sync_c1 <= input when rising_edge(clk);
+  input_sync_c2 <= input_sync_c1 when rising_edge(clk);
 
   ---------------------------------------------------------------------
   -- The filter
   ---------------------------------------------------------------------
   GEN_FILTERS: for I in 0 to DATA_WIDTH-1 generate
-  process(sample_i, filter_state_r, filter_count_r)
+  process(input_sync_c2, filter_state_r, filter_count_r)
   begin
     -- registers
     filter_state_x(I) <= filter_state_r(I);
     filter_count_x(I) <= filter_count_r(I);
 
     -- filter implementation
-    if( sample_i(I) /= filter_state_r(I) ) then
-      if( filter_count_r(I) = CLOCKS-1 ) then
-        filter_state_x(I) <= sample_i(I);
+    if( input_sync_c2(I) /= filter_state_r(I) ) then
+      if( filter_count_r(I) = FILTER_CLOCKS-1 ) then
+        filter_state_x(I) <= input_sync_c2(I);
         filter_count_x(I) <= 0;
       else
         filter_count_x(I) <= filter_count_r(I) + 1;

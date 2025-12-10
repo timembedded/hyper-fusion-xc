@@ -16,6 +16,7 @@ idf_component_register(
     "bluemsx//MsxAudio.cpp"
     "bluemsx//OpenMsxY8950.cpp"
     "bluemsx//OpenMsxY8950Adpcm.cpp"
+    "bluemsx//fifo.c"
   PRIV_REQUIRES
     nvs_flash
     esp_eth

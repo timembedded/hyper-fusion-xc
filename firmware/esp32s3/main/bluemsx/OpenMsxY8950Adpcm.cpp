@@ -1,6 +1,8 @@
 // $Id: OpenMsxY8950Adpcm.cpp,v 1.5 2007/08/05 21:14:39 dvik Exp $
 
 #include <string.h>
+#include <freertos/FreeRTOS.h>
+
 #include "OpenMsxY8950Adpcm.h"
 #include "OpenMsxY8950.h"
 
@@ -63,6 +65,7 @@ Y8950Adpcm::Y8950Adpcm(Y8950& y8950_, const string& name_, int sampleRam)
 {
     ramBank = (uint8_t*)heap_caps_malloc(ramSize, MALLOC_CAP_SPIRAM);
     memset(ramBank, 0xFF, ramSize);
+    fifo_init(&adpcmFifo, fifoBuffer, sizeof(fifoBuffer));
     unschedule();
 }
 
@@ -127,9 +130,12 @@ void Y8950Adpcm::writeReg(uint8_t rg, uint8_t data)
     switch (rg) {
         case 0x07: // START/REC/MEM DATA/REPEAT/SP-OFF/-/-/RESET
             reg7 = data;
+            Y8950Log(Y8950LogLevel_Info, "reg7=%x\n", reg7);
             if (reg7 & R07_RESET) {
+                Y8950Log(Y8950LogLevel_Info, "Stop\n");
                 playing = false;
             } else if (data & R07_START) {
+                Y8950Log(Y8950LogLevel_Info, "Start\n");
                 playing = true;
                 restart();
             }
@@ -148,35 +154,48 @@ void Y8950Adpcm::writeReg(uint8_t rg, uint8_t data)
             break;
 
         case 0x09: // START ADDRESS (L)
+            Y8950Log(Y8950LogLevel_Info, "START ADDRESS (L) = %x\n", data);
             startAddr = (startAddr & 0x7F800) | (data << 3);
             memPntr = 0;
             break;
         case 0x0A: // START ADDRESS (H) 
+            Y8950Log(Y8950LogLevel_Info, "START ADDRESS (H) = %x\n", data);
             startAddr = (startAddr & 0x007F8) | (data << 11);
             memPntr = 0;
             break;
 
         case 0x0B: // STOP ADDRESS (L)
+            Y8950Log(Y8950LogLevel_Info, "STOP ADDRESS (L) = %x\n", data);
             stopAddr = (stopAddr & 0x7F807) | (data << 3);
             break;
         case 0x0C: // STOP ADDRESS (H) 
+            Y8950Log(Y8950LogLevel_Info, "STOP ADDRESS (H) = %x\n", data);
             stopAddr = (stopAddr & 0x007FF) | (data << 11);
             break;
 
 
         case 0x0F: // ADPCM-DATA
             // TODO check this
-            //if ((reg7 & R07_REC) && (reg7 & R07_MEMORY_DATA)) {
-            {
+            if ((reg7 & 0xE0) == 0x60) {
+                // Write to memory from CPU
                 int tmp = ((startAddr + memPntr) & addrMask) / 2;
                 tmp = (tmp < ramSize) ? tmp : (tmp & (ramSize - 1)); 
                 if (!romBank) {
                     ramBank[tmp] = data;
+                    Y8950Log(Y8950LogLevel_Debug, "mem[%x] = %x\n", tmp, data);
                 }
                 //PRT_DEBUG("Y8950Adpcm: mem " << tmp << " " << (int)data);
                 memPntr += 2;
                 if ((startAddr + memPntr) > stopAddr) {
+                    Y8950Log(Y8950LogLevel_Debug, "Set STATUS_EOS\n");
                     y8950.setStatus(Y8950::STATUS_EOS);
+                }
+            }
+            if ((reg7 & 0xE0) == 0x80) {
+                // ADPCM synthesis from CPU
+                while (!fifo_push(&adpcmFifo, &data, 1)) {
+                    Y8950Log(Y8950LogLevel_Debug, "ADPCM FIFO full!\n");
+                    vTaskDelay(1);
                 }
             }
             y8950.setStatus(Y8950::STATUS_BUF_RDY);
@@ -204,8 +223,12 @@ void Y8950Adpcm::writeReg(uint8_t rg, uint8_t data)
             volumeWStep = (int)((double)volume * step / MAX_STEP);
             break;
         }
-        case 0x0D: // PRESCALE (L) 
+        case 0x0D: // PRESCALE (L)
+            Y8950Log(Y8950LogLevel_Info, "PRESCALE L = %x\n", data);
+            break;
         case 0x0E: // PRESCALE (H) 
+            Y8950Log(Y8950LogLevel_Info, "PRESCALE H = %x\n", data);
+            break;
         case 0x15: // DAC-DATA  (bit9-2)
         case 0x16: //           (bit1-0)
         case 0x17: //           (exponent)
@@ -259,22 +282,37 @@ int Y8950Adpcm::calcSample()
     }
     nowStep += step;
     if (nowStep >= MAX_STEP) {
-        int nowLeveling;
+        int nowLeveling = nextLeveling;
         do {
             nowStep -= MAX_STEP;
             unsigned long val;
-            if (!(playAddr & 1)) {
-                // n-th nibble
-                int tmp = playAddr / 2;
-                if (romBank || (tmp >= ramSize)) {
-                    reg15 = 0xFF;
+            if ((reg7 & R07_MEMORY_DATA)==0) {
+                // ADPCM synthesis from FIFO
+                if (!(playAddr & 1)) {
+                    if (!fifo_pop_byte(&adpcmFifo, &reg15)) {
+                        Y8950Log(Y8950LogLevel_Debug, "ADPCM FIFO empty!\n");
+                        // do again later
+                        return output >> 12;
+                    }
+                    val = reg15 >> 4;
                 } else {
-                    reg15 = ramBank[tmp];
+                    val = reg15 & 0x0F;
                 }
-                val = reg15 >> 4;
             } else {
-                // (n+1)-th nibble
-                val = reg15 & 0x0F;
+                // ADPCM synthesis from memory
+                if (!(playAddr & 1)) {
+                    // n-th nibble
+                    int tmp = playAddr / 2;
+                    if (romBank || (tmp >= ramSize)) {
+                        reg15 = 0xFF;
+                    } else {
+                        reg15 = ramBank[tmp];
+                    }
+                    val = reg15 >> 4;
+                } else {
+                    // (n+1)-th nibble
+                    val = reg15 & 0x0F;
+                }
             }
             int prevOut = out;
             out = CLAP(DECODE_MIN, out + (diff * F1[val]) / 8,
@@ -285,8 +323,9 @@ int Y8950Adpcm::calcSample()
             nextLeveling = prevOut + deltaNext / 2;
         
             playAddr++;
-            if (playAddr > stopAddr) {
+            if ((reg7 & R07_MEMORY_DATA) && playAddr > stopAddr) {
                 if (reg7 & R07_REPEAT) {
+                    Y8950Log(Y8950LogLevel_Info, "Restart\n");
                     restart();
                 } else {
                     playing = false;

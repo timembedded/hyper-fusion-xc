@@ -142,10 +142,12 @@ extern "C" UInt8 msxaudioRead(MsxAudio* msxaudio, UInt16 ioPort)
     switch (ioPort & 0x01) {
     case 0:
         result = msxaudio->y8950->readStatus();
+        Y8950Log(Y8950LogLevel_Debug, "s[%x]\n", result);
         break;
     case 1:
         mixerSync(msxaudio->mixer);
         result = msxaudio->y8950->readReg(msxaudio->registerLatch);
+        Y8950Log(Y8950LogLevel_Debug, "[%x]->%x\n", msxaudio->registerLatch, result);
         break;
     }
     return result;
@@ -155,11 +157,10 @@ extern "C" void msxaudioWrite(MsxAudio* msxaudio, UInt16 ioPort, UInt8 value)
 {
     switch (ioPort & 0x01) {
     case 0:
-        //ESP_LOGI("Audio", "Addr %d", value);
         msxaudio->registerLatch = value;
         break;
     case 1:
-        //ESP_LOGI("Audio", "Data %d", value);
+        Y8950Log(Y8950LogLevel_Debug, "[%x]=%x\n", msxaudio->registerLatch, value);
         mixerSync(msxaudio->mixer);
         msxaudio->y8950->writeReg(msxaudio->registerLatch, value);
         break;

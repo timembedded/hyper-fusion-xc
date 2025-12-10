@@ -22,28 +22,11 @@ use ieee.numeric_std.all;
 
 package common is
 
+  -- Constants
+  constant C_SYSTEM_CLOCK_KHZ : integer := 100000;
+
   -- Find the base-2 logarithm of a number.
   function log2(v : in natural) return natural;
-
-  -- Digital Input Filter
-  component input_filter is
-  generic (
-    CLOCKS      : integer   := 2;
-    DATA_WIDTH  : integer   := 1;
-    RESET_STATE : std_logic := '0'
-  );
-  port
-  (
-    -- Clock
-    clk       : IN  std_logic;
-    clken     : IN  std_logic;
-    reset     : IN  std_logic;
-
-    -- Data
-    input     : IN  std_logic_vector(DATA_WIDTH-1 downto 0);
-    output    : OUT std_logic_vector(DATA_WIDTH-1 downto 0)
-  );
-  end component;
 
 end package common;
 

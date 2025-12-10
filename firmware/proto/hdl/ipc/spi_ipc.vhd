@@ -286,7 +286,7 @@ begin
         -- Update data in RAM, clear pending bit
         ioram_write <= '1';
         ioram_wrdata_i.readdata <= ififo_q_i.data;
-        -- IF this matches a pending read, return the data
+        -- If this matches a pending read, return the data
         if (pending_read_r = '1' and pending_address_r = ios_address_r) then
           pending_read_x <= '0';
           ios_readdatavalid <= '1';

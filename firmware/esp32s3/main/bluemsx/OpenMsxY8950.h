@@ -10,6 +10,19 @@ extern "C" {
 #include "AudioMixer.h"
 }
 
+#define Y8950LogLevel_Debug    0
+#define Y8950LogLevel_Info     1
+#define Y8950LogLevel_Warning  2
+#define Y8950LogLevel_Error    3
+
+#define Y8950SelectedLogLevel  Y8950LogLevel_Warning
+
+#define Y8950Log(level, ...) \
+    do { \
+        if (level >= Y8950SelectedLogLevel) { \
+            printf(__VA_ARGS__); \
+        } \
+    } while (0)
 
 class TimerCallback
 {

@@ -6,8 +6,9 @@
 #include "MsxTypes.h"
 #include <string>
 
-using namespace std;
+#include "fifo.h"
 
+using namespace std;
 
 typedef unsigned long  EmuTime;
 typedef unsigned char  uint8_t;
@@ -60,6 +61,9 @@ private:
         
     uint8_t reg7;
     uint8_t reg15;
+
+    fifo_t adpcmFifo;
+    uint8_t fifoBuffer[1024];
 };
 
 #endif 

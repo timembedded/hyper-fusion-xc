@@ -1149,6 +1149,7 @@ void Y8950::setStatus(uint8_t flags)
     status |= flags;
     if (status & statusMask) {
         status |= 0x80;
+        Y8950Log(Y8950LogLevel_Debug, "set[%x,%x]\n", status, statusMask);
         irq.set();
     }
 }
@@ -1157,18 +1158,33 @@ void Y8950::resetStatus(uint8_t flags)
     status &= ~flags;
     if (!(status & statusMask)) {
         status &= 0x7f;
+        Y8950Log(Y8950LogLevel_Debug, "resetStatus[%x,%x,%x]\n", status, statusMask, flags);
         irq.reset();
     }
 }
 void Y8950::changeStatusMask(uint8_t newMask)
 {
+    if ((statusMask & 0x08) != (newMask & 0x08)) {
+        Y8950Log(Y8950LogLevel_Info, "BUFRDY[%s]\n", (newMask & 0x08)?"ON":"OFF");
+    }
+    if ((statusMask & 0x10) != (newMask & 0x10)) {
+        Y8950Log(Y8950LogLevel_Info, "EOS[%s]\n", (newMask & 0x10)?"ON":"OFF");
+    }
+    if ((statusMask & 0x20) != (newMask & 0x20)) {
+        Y8950Log(Y8950LogLevel_Info, "T2[%s]\n", (newMask & 0x20)?"ON":"OFF");
+    }
+    if ((statusMask & 0x40) != (newMask & 0x40)) {
+        Y8950Log(Y8950LogLevel_Info, "T1[%s]\n", (newMask & 0x40)?"ON":"OFF");
+    }
     statusMask = newMask;
-    status &= statusMask;
-    if (status) {
+    if ((status & 0x80)==0 && (status & statusMask)!=0) {
         status |= 0x80;
+        Y8950Log(Y8950LogLevel_Debug, "set[%x,%x]\n", status, statusMask);
         irq.set();
-    } else {
+    }
+    if ((status & 0x80)!=0 && (status & statusMask)==0) {
         status &= 0x7f;
+        Y8950Log(Y8950LogLevel_Debug, "changeStatusMask[%x,%x]\n", status, statusMask);
         irq.reset();
     }
 }

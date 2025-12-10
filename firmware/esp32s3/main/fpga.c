@@ -35,12 +35,6 @@
 #include "i2s.h"
 #include "emutimer.h"
 
-#include "bluemsx/IoPort.h"
-#include "bluemsx/AudioMixer.h"
-#include "bluemsx/AY8910.h"
-#include "bluemsx/YM2413.h"
-#include "bluemsx/MsxAudio.h"
-
 #define MAX(a, b)   (((a) > (b)) ? (a) : (b))
 
 #define FPGA_BUSY_TIMEOUT_MS  100
@@ -55,7 +49,7 @@
 #define SPI_PIN_NUM_D1        7
 #define SPI_PIN_NUM_D2        15
 #define SPI_PIN_NUM_D3        16
-#define SPI_PIN_NUM_IRQ        17
+#define SPI_PIN_NUM_IRQ       17
 
 static const char TAG[] = "main";
 
@@ -318,16 +312,26 @@ void fpga_io_unregister(fpga_handle_t ctx, uint8_t port)
     ESP_ERROR_CHECK(ret);
 }
 
+static bool s_irq_stat;
+
 void fpga_irq_set(fpga_handle_t fpga_handle)
 {
-    BaseType_t ret = ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_IRQ, 0, 1); // Set IRQ
-    ESP_ERROR_CHECK(ret);
+    if (!s_irq_stat) {
+        //printf("IRQ ON\n");
+        s_irq_stat = true;
+    }
+    //BaseType_t ret = ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_IRQ, 0, 1); // Set IRQ
+    //ESP_ERROR_CHECK(ret);
 }
 
 void fpga_irq_reset(fpga_handle_t fpga_handle)
 {
-    BaseType_t ret = ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_IRQ, 0, 0); // Reset IRQ
-    ESP_ERROR_CHECK(ret);
+    if (s_irq_stat) {
+        //printf("IRQ OFF\n");
+        s_irq_stat = false;
+    }
+    //BaseType_t ret = ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_IRQ, 0, 0); // Reset IRQ
+    //ESP_ERROR_CHECK(ret);
 }
 
 static IRAM_ATTR void isr_handler(void* arg)
