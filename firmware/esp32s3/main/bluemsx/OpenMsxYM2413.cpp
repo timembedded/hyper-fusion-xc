@@ -1333,7 +1333,7 @@ void OpenYM2413::reset()
 }
 
 
-OpenYM2413::OpenYM2413(const string &name, short volume)
+OpenYM2413::OpenYM2413(short volume)
 {
     eg_cnt = eg_timer = 0;
     rhythm = 0;

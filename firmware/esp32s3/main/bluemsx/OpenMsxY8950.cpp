@@ -406,14 +406,8 @@ void Y8950::Channel::keyOff()
 //**********************************************************//
 
 
-void Y8950::callback(uint8_t flag)
-{
-    setStatus(flag);
-}
-
-Y8950::Y8950(const string& name_, int sampleRam)
-    : timer1(this), timer2(this), adpcm(*this, name_, sampleRam), /*connector(),*/
-          name(name_)
+Y8950::Y8950(int sampleRam)
+    : adpcm(*this, sampleRam) /*connector(),*/
 {
     if (tables == nullptr) {
         tables = (tables_t*)heap_caps_malloc(sizeof(tables_t), MALLOC_CAP_SPIRAM);
@@ -437,25 +431,10 @@ Y8950::Y8950(const string& name_, int sampleRam)
     }
 
     reset();
-//  registerSound(config);
-//  Debugger::instance().registerDebuggable(name + " regs", *this);
 }
 
 Y8950::~Y8950()
 {
-//  Debugger::instance().unregisterDebuggable(name + " regs", *this);
-//  unregisterSound();
-}
-
-const string& Y8950::getName() const
-{
-    return name;
-}
-
-const string& Y8950::getDescription() const
-{
-    static const string desc("MSX-AUDIO");
-    return desc;
 }
 
 void Y8950::setSampleRate(int sampleRate, int oversampling)
@@ -504,9 +483,6 @@ void Y8950::reset()
 
     reg[0x04] = 0x18;
     reg[0x19] = 0x0F; // fixes 'Thunderbirds are Go'
-    status = 0x00;
-    statusMask = 0;
-    irq.reset();
     
     adpcm.reset();
     setInternalMute(true);  // muted
@@ -914,24 +890,15 @@ void Y8950::writeReg(uint8_t rg, uint8_t data)
             break;
 
         case 0x02: // TIMER1 (reso. 80us)
-            timer1.setValue(data);
-            reg[rg] = data;
+            // Is handled in FPGA
             break;
 
         case 0x03: // TIMER2 (reso. 320us) 
-            timer2.setValue(data);
-            reg[rg] = data;
+            // Is handled in FPGA
             break;
 
         case 0x04: // FLAG CONTROL 
-            if (data & R04_IRQ_RESET) {
-                resetStatus(0x78);  // reset all flags
-            } else {
-                changeStatusMask((~data) & 0x78);
-                timer1.setStart((data & R04_ST1) != 0);
-                timer2.setStart((data & R04_ST2) != 0);
-                reg[rg] = data;
-            }
+            // Is handled in FPGA
             break;
 
         case 0x06: // (KEYBOARD OUT) 
@@ -1133,58 +1100,4 @@ uint8_t Y8950::readReg(uint8_t rg)
     }
     //PRT_DEBUG("Y8950 read " << (int)rg<<" "<<(int)result);
     return result;
-}
-
-uint8_t Y8950::readStatus()
-{
-    setStatus(STATUS_BUF_RDY);  // temp hack
-    uint8_t tmp = status & (0x80 | statusMask);
-    //PRT_DEBUG("Y8950 read status " << (int)tmp);
-    return tmp | 0x06;  // bit 1 and 2 are always 1
-}
-
-
-void Y8950::setStatus(uint8_t flags)
-{
-    status |= flags;
-    if (status & statusMask) {
-        status |= 0x80;
-        Y8950Log(Y8950LogLevel_Debug, "set[%x,%x]\n", status, statusMask);
-        irq.set();
-    }
-}
-void Y8950::resetStatus(uint8_t flags)
-{
-    status &= ~flags;
-    if (!(status & statusMask)) {
-        status &= 0x7f;
-        Y8950Log(Y8950LogLevel_Debug, "resetStatus[%x,%x,%x]\n", status, statusMask, flags);
-        irq.reset();
-    }
-}
-void Y8950::changeStatusMask(uint8_t newMask)
-{
-    if ((statusMask & 0x08) != (newMask & 0x08)) {
-        Y8950Log(Y8950LogLevel_Info, "BUFRDY[%s]\n", (newMask & 0x08)?"ON":"OFF");
-    }
-    if ((statusMask & 0x10) != (newMask & 0x10)) {
-        Y8950Log(Y8950LogLevel_Info, "EOS[%s]\n", (newMask & 0x10)?"ON":"OFF");
-    }
-    if ((statusMask & 0x20) != (newMask & 0x20)) {
-        Y8950Log(Y8950LogLevel_Info, "T2[%s]\n", (newMask & 0x20)?"ON":"OFF");
-    }
-    if ((statusMask & 0x40) != (newMask & 0x40)) {
-        Y8950Log(Y8950LogLevel_Info, "T1[%s]\n", (newMask & 0x40)?"ON":"OFF");
-    }
-    statusMask = newMask;
-    if ((status & 0x80)==0 && (status & statusMask)!=0) {
-        status |= 0x80;
-        Y8950Log(Y8950LogLevel_Debug, "set[%x,%x]\n", status, statusMask);
-        irq.set();
-    }
-    if ((status & 0x80)!=0 && (status & statusMask)==0) {
-        status &= 0x7f;
-        Y8950Log(Y8950LogLevel_Debug, "changeStatusMask[%x,%x]\n", status, statusMask);
-        irq.reset();
-    }
 }

@@ -19,7 +19,7 @@ class Y8950;
 class Y8950Adpcm
 {
 public:
-    Y8950Adpcm(Y8950& y8950, const string& name, int sampleRam);
+    Y8950Adpcm(Y8950& y8950, int sampleRam);
     virtual ~Y8950Adpcm();
     
     void reset();
@@ -36,7 +36,6 @@ private:
     void restart();
 
     Y8950& y8950;
-    const string name;
 
     int sampleRate;
     

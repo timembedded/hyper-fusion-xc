@@ -42,7 +42,6 @@ void boardSetInt(uint32_t irq)
     s_pending_irq |= irq;
 
     if (s_pending_irq != 0 && !was_pending) {
-        //ESP_LOGI(TAG, "Set INT");
         irq_set_callback(irq_callback_ref);
     }
 }
@@ -54,7 +53,6 @@ void boardClearInt(uint32_t irq)
     s_pending_irq &= ~irq;
 
     if (s_pending_irq == 0 && was_pending) {
-        //ESP_LOGI(TAG, "Reset INT");
         irq_clear_callback(irq_callback_ref);
     }
 }

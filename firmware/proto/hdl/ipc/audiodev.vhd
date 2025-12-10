@@ -57,7 +57,8 @@ end audiodev;
 architecture rtl of audiodev is
 
   signal address_latch_x, address_latch_r : std_logic_vector(7 downto 0);
-  signal take_read_i : std_logic;
+  signal take_read_i    : std_logic;
+  signal take_write_i   : std_logic;
   signal readdata_x, readdata_r : std_logic_vector(7 downto 0);
   signal readdatavalid_x, readdatavalid_r : std_logic;
 
@@ -115,7 +116,7 @@ begin
   irq <= status_int_r;
 
   iom_read      <= ios_read when take_read_i = '0' else '0';
-  iom_write     <= ios_write;
+  iom_write     <= ios_write when take_write_i = '0' else '0';
   iom_address   <= ios_address;
   iom_writedata <= ios_writedata;
   ios_readdata  <= '1' & readdata_r when readdatavalid_r = '1' else iom_readdata;
@@ -334,6 +335,7 @@ begin
     timer_t2_running_x <= timer_t2_running_r;
     status_t1_x <= status_t1_r;
     status_t2_x <= status_t2_r;
+    take_write_i <= '0';
 
     -- Generate 80us (12.5 kHz) timebase
     timer_tick_x <= '0';
@@ -374,10 +376,13 @@ begin
     if (write_reg_i = '1') then
       case (address_latch_r) is
         when x"02" => -- TIMER1
+          take_write_i <= '1'; -- do not send this write to IPC, as it is not handled there
           timer_t1_preset_x <= ios_writedata;
         when x"03" => -- TIMER2
+          take_write_i <= '1'; -- do not send this write to IPC, as it is not handled there
           timer_t2_preset_x <= ios_writedata;
         when x"04" => -- FLAG_CONTROL
+          take_write_i <= '1'; -- do not send this write to IPC, as it is not handled there
           if (ios_writedata(7) = '1') then
             -- Reset all flags
             status_t1_x <= '0';

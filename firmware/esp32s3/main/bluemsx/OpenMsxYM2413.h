@@ -130,7 +130,7 @@ class Channel
 class OpenYM2413 : public OpenYM2413Base
 {
     public:
-        OpenYM2413(const string &name, short volume);
+        OpenYM2413(short volume);
         virtual ~OpenYM2413();
         
         virtual void reset();

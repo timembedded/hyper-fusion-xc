@@ -36,10 +36,10 @@
 struct YM_2413 {
     YM_2413() : address(0) {
         if (0) {
-             ym2413 = new OpenYM2413("ym2413", 100);
+             ym2413 = new OpenYM2413(100);
         }
         else {
-             ym2413 = new OpenYM2413_2("ym2413", 100);
+             ym2413 = new OpenYM2413_2(100);
         }
         memset(defaultBuffer, 0, sizeof(defaultBuffer));
     }

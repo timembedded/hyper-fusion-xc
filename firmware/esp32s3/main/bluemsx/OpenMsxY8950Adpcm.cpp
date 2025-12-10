@@ -60,8 +60,8 @@ int Y8950Adpcm::CLAP(int min, int x, int max)
 //                                                          //
 //**********************************************************//
 
-Y8950Adpcm::Y8950Adpcm(Y8950& y8950_, const string& name_, int sampleRam)
-    : y8950(y8950_), name(name_ + " RAM"), ramSize(sampleRam), volume(0)
+Y8950Adpcm::Y8950Adpcm(Y8950& y8950_, int sampleRam)
+    : y8950(y8950_), ramSize(sampleRam), volume(0)
 {
     ramBank = (uint8_t*)heap_caps_malloc(ramSize, MALLOC_CAP_SPIRAM);
     memset(ramBank, 0xFF, ramSize);
@@ -184,21 +184,16 @@ void Y8950Adpcm::writeReg(uint8_t rg, uint8_t data)
                     ramBank[tmp] = data;
                     Y8950Log(Y8950LogLevel_Debug, "mem[%x] = %x\n", tmp, data);
                 }
-                //PRT_DEBUG("Y8950Adpcm: mem " << tmp << " " << (int)data);
                 memPntr += 2;
-                if ((startAddr + memPntr) > stopAddr) {
-                    Y8950Log(Y8950LogLevel_Debug, "Set STATUS_EOS\n");
-                    y8950.setStatus(Y8950::STATUS_EOS);
-                }
             }
             if ((reg7 & 0xE0) == 0x80) {
                 // ADPCM synthesis from CPU
                 while (!fifo_push(&adpcmFifo, &data, 1)) {
-                    Y8950Log(Y8950LogLevel_Debug, "ADPCM FIFO full!\n");
+                    // TODO: This constantly happens, needs investigation
+                    Y8950Log(Y8950LogLevel_Debug, "full\n");
                     vTaskDelay(1);
                 }
             }
-            y8950.setStatus(Y8950::STATUS_BUF_RDY);
             break;
 
         case 0x10: // DELTA-N (L) 
@@ -251,9 +246,6 @@ uint8_t Y8950Adpcm::readReg(uint8_t rg)
                 result = ramBank[adr];
             }
             memPntr += 2;
-            if ((startAddr + memPntr) > stopAddr) {
-                y8950.setStatus(Y8950::STATUS_EOS);
-            }
             break;
         }
         case 0x13: // TODO check
@@ -290,7 +282,7 @@ int Y8950Adpcm::calcSample()
                 // ADPCM synthesis from FIFO
                 if (!(playAddr & 1)) {
                     if (!fifo_pop_byte(&adpcmFifo, &reg15)) {
-                        Y8950Log(Y8950LogLevel_Debug, "ADPCM FIFO empty!\n");
+                        Y8950Log(Y8950LogLevel_Debug, "empty\n");
                         // do again later
                         return output >> 12;
                     }

@@ -222,7 +222,7 @@ class OpenYM2413_2 : public OpenYM2413Base
     };
 
 public:
-    OpenYM2413_2(const string& name, short volume);
+    OpenYM2413_2(short volume);
     virtual ~OpenYM2413_2();
 
     virtual void reset();
@@ -230,8 +230,6 @@ public:
     virtual uint8_t peekReg(uint8_t r) { return reg[r]; }
 
     // SoundDevice
-    virtual const std::string& getName() const;
-    virtual const std::string& getDescription() const;
     virtual void setInternalVolume(short newVolume);
     virtual int* updateBuffer(int length);
     virtual void setSampleRate(int newSampleRate, int Oversampling);
@@ -340,8 +338,6 @@ private:
         unsigned int dphaseTable[512][8][16];
     };
     static tables_t *tables;
-
-    const std::string name;
 
     int buffer[AUDIO_MONO_BUFFER_SIZE];
 };

@@ -24,46 +24,6 @@ extern "C" {
         } \
     } while (0)
 
-class TimerCallback
-{
-    public:
-        virtual void callback(uint8_t value) = 0;
-};
-
-extern void msxaudioTimerSet(int timer, int count);
-extern void msxaudioTimerStart(int timer, int start, uint8_t ref);
-
-template<int freq, uint8_t flag>
-class MsxAudioTimer
-{
-    public:
-        MsxAudioTimer(TimerCallback *cb) {
-            id = 12500 / freq;
-        }
-        virtual ~MsxAudioTimer() {}
-        void setValue(uint8_t value) {
-            msxaudioTimerSet(id, id * (256 - value));
-        }
-        void setStart(bool start) {
-            msxaudioTimerStart(id, start, flag);
-        }
-
-    private:
-        int id;
-};
-
-
-class MsxAudioIRQHelper 
-{
-public:
-    MsxAudioIRQHelper() {}
-    static void set() {
-        boardSetInt(0x10);
-    }
-    static void reset() {
-        boardClearInt(0x10);
-    }
-};
 
 #ifndef OPENMSX_SOUNDDEVICE
 #define OPENMSX_SOUNDDEVICE
@@ -146,7 +106,7 @@ static const int AM_PG_WIDTH = 1<<AM_PG_BITS;
 static const int AM_DP_BITS = 16;
 static const int AM_DP_WIDTH = 1<<AM_DP_BITS;
 
-class Y8950 : public SoundDevice, public TimerCallback
+class Y8950 : public SoundDevice
 {
     class Patch {
     public:
@@ -277,7 +237,7 @@ class Y8950 : public SoundDevice, public TimerCallback
     };
 
 public:
-    Y8950(const string& name, int sampleRam);
+    Y8950(int sampleRam);
     virtual ~Y8950();
 
     void reset();
@@ -288,12 +248,8 @@ public:
     virtual void setSampleRate(int sampleRate, int Oversampling);
     virtual int* updateBuffer(int length);
     
-    virtual void callback(uint8_t flag);
-
 private:
     // SoundDevice
-    virtual const string& getName() const;
-    virtual const string& getDescription() const;
     virtual void setInternalVolume(short maxVolume);
 
     // Definition of envelope mode
@@ -378,43 +334,6 @@ private:
 
     int maxVolume;
 
-
-    // Bitmask for register 0x04
-    /** Timer1 Start. */
-    static const int R04_ST1          = 0x01;
-    /** Timer2 Start. */
-    static const int R04_ST2          = 0x02;
-    // not used
-    //static const int R04            = 0x04;
-    /** Mask 'Buffer Ready'. */
-    static const int R04_MASK_BUF_RDY = 0x08;
-    /** Mask 'End of sequence'. */
-    static const int R04_MASK_EOS     = 0x10;
-    /** Mask Timer2 flag. */
-    static const int R04_MASK_T2      = 0x20;
-    /** Mask Timer1 flag. */
-    static const int R04_MASK_T1      = 0x40;
-    /** IRQ RESET. */
-    static const int R04_IRQ_RESET    = 0x80;
-
-    // Bitmask for status register
-    static const int STATUS_EOS     = R04_MASK_EOS;
-    static const int STATUS_BUF_RDY = R04_MASK_BUF_RDY;
-    static const int STATUS_T2      = R04_MASK_T2;
-    static const int STATUS_T1      = R04_MASK_T1;
-
-    /** STATUS Register. */
-    uint8_t status;
-    /** bit=0 -> masked. */
-    uint8_t statusMask;
-    MsxAudioIRQHelper irq;
-
-    // Timers
-    /** 80us timer. */
-    MsxAudioTimer<12500, STATUS_T1> timer1;
-    /** 320us timer. */
-    MsxAudioTimer<3125, STATUS_T2> timer2;
-
     // ADPCM
     Y8950Adpcm adpcm;
     friend class Y8950Adpcm;
@@ -432,8 +351,6 @@ private:
     int dacCtrlVolume;
     int dacDaVolume;
     int dacEnabled;
-
-    const string name;
 };
 
 #endif

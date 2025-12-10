@@ -312,26 +312,16 @@ void fpga_io_unregister(fpga_handle_t ctx, uint8_t port)
     ESP_ERROR_CHECK(ret);
 }
 
-static bool s_irq_stat;
-
 void fpga_irq_set(fpga_handle_t fpga_handle)
 {
-    if (!s_irq_stat) {
-        //printf("IRQ ON\n");
-        s_irq_stat = true;
-    }
-    //BaseType_t ret = ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_IRQ, 0, 1); // Set IRQ
-    //ESP_ERROR_CHECK(ret);
+    BaseType_t ret = ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_IRQ, 0, 1); // Set IRQ
+    ESP_ERROR_CHECK(ret);
 }
 
 void fpga_irq_reset(fpga_handle_t fpga_handle)
 {
-    if (s_irq_stat) {
-        //printf("IRQ OFF\n");
-        s_irq_stat = false;
-    }
-    //BaseType_t ret = ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_IRQ, 0, 0); // Reset IRQ
-    //ESP_ERROR_CHECK(ret);
+    BaseType_t ret = ret = spi_fast_fpga_write(fpga_handle, FPGA_CMD_SET_IRQ, 0, 0); // Reset IRQ
+    ESP_ERROR_CHECK(ret);
 }
 
 static IRAM_ATTR void isr_handler(void* arg)

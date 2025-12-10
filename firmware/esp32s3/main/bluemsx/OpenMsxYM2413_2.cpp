@@ -560,8 +560,7 @@ static uint8_t inst_data[16 + 3][8] = {
     { 0x25,0x11,0x00,0x00,0xf8,0xfa,0xf8,0x55 }
 };
 
-OpenYM2413_2::OpenYM2413_2(const string& name_, short volume)
-    : name(name_)
+OpenYM2413_2::OpenYM2413_2(short volume)
 {
     for (int i = 0; i < 16 + 3; ++i) {
         patches[2 * i + 0] = Patch(0, inst_data[i]);
@@ -592,17 +591,6 @@ OpenYM2413_2::OpenYM2413_2(const string& name_, short volume)
 
 OpenYM2413_2::~OpenYM2413_2()
 {
-}
-
-const string& OpenYM2413_2::getName() const
-{
-    return name;
-}
-
-const string& OpenYM2413_2::getDescription() const
-{
-    static const string desc("MSX-MUSIC");
-    return desc;
 }
 
 // Reset whole of OPLL except patch datas

@@ -46,7 +46,6 @@ struct audiodev_t {
     fpga_handle_t fpga_handle;
     write_samples_callback_t write_samples_callback;
     SemaphoreHandle_t mixer_sem;
-    emutimer_handle_t timer_12k5;
     emutimer_handle_t timer_mixer;
     Mixer *mixer;
     AY8910 *psg;
@@ -114,12 +113,6 @@ static uint32_t mixer_get_samples_callback(void *ref)
         ESP_LOGI(TAG, "mix %d", count);
     }
 
-    // Handle audio tick timers
-    uint32_t elapsed = timer_get_duration(audiodev->timer_12k5);
-    if (elapsed > 0) {
-        msxaudioTick(elapsed);
-    }
-
     return count;
 }
 
@@ -136,7 +129,6 @@ void audiodev_stop(audiodev_handle_t audiodev)
 
     // Remove timers
     timer_destroy(audiodev->timer_mixer);
-    timer_destroy(audiodev->timer_12k5);
 
     // Disable FPGA IO handling
     fpga_io_stop(audiodev->fpga_handle);
@@ -163,7 +155,6 @@ void audiodev_start(audiodev_handle_t audiodev)
 
     // Create timers
     audiodev->timer_mixer = timer_create(AUDIO_SAMPLERATE);
-    audiodev->timer_12k5 = timer_create(12500);
 
     // Create mixer
     audiodev->mixer = mixerCreate(mixer_get_samples_callback, audiodev);
@@ -192,7 +183,6 @@ void audiodev_start(audiodev_handle_t audiodev)
 
     // Reset timers
     timer_reset(audiodev->timer_mixer);
-    timer_reset(audiodev->timer_12k5);
 
     // Start mixer thread
     xSemaphoreGive(audiodev->mixer_sem);
