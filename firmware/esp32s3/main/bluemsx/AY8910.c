@@ -42,7 +42,7 @@ static const UInt8 regMask[16] = {
     0x1f, 0x1f, 0x1f, 0xff, 0xff, 0x0f, 0xff, 0xff
 };
 
-static Int32* ay8910Sync(void* ref, UInt32 count);
+static Int32* ay8910Sync(void* ref, Int32 *buffer, UInt32 count);
 static void updateRegister(AY8910* ay8910, UInt8 address, UInt8 data);
 
 struct AY8910 {
@@ -76,8 +76,6 @@ struct AY8910 {
     Int32  ctrlVolume;
     Int32  oldSampleVolume;
     Int32  daVolume;
-
-    Int32  buffer[AUDIO_MONO_BUFFER_SIZE];
 };
 
 AY8910* ay8910Create(Mixer* mixer, Ay8910Connector connector, PsgType type)
@@ -260,7 +258,7 @@ void ay8910WriteData(AY8910* ay8910, UInt16 ioPort, UInt8 data)
     updateRegister(ay8910, ay8910->address, data);
 }
 
-static Int32* ay8910Sync(void* ref, UInt32 count)
+static Int32* ay8910Sync(void* ref, Int32 *buffer, UInt32 count)
 {
     AY8910* ay8910 = (AY8910*)ref;
     Int32   channel;
@@ -328,8 +326,8 @@ static Int32* ay8910Sync(void* ref, UInt32 count)
         ay8910->daVolume += 2 * (ay8910->ctrlVolume - ay8910->daVolume) / 3;
 
         /* Store calclulated sample value */
-        ay8910->buffer[index] = 9 * ay8910->daVolume;
+        buffer[index] = 9 * ay8910->daVolume;
     }
 
-    return ay8910->buffer;
+    return buffer;
 }

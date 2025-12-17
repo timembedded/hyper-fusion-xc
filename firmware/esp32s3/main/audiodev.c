@@ -38,6 +38,7 @@
 #include "bluemsx/AY8910.h"
 #include "bluemsx/YM2413.h"
 #include "bluemsx/MsxAudio.h"
+#include "bluemsx/Moonsound.h"
 
 static const char TAG[] = "audiodev";
 
@@ -51,6 +52,7 @@ struct audiodev_t {
     AY8910 *psg;
     YM_2413 *ym2413;
     MsxAudioHndl msxaudio;
+    Moonsound *moonsound;
 };
 typedef struct audiodev_t audiodev_t;
 
@@ -134,19 +136,30 @@ void audiodev_stop(audiodev_handle_t audiodev)
     fpga_io_stop(audiodev->fpga_handle);
 
     // Cleanup
+    if (audiodev->moonsound) {
+        moonsoundDestroy(audiodev->moonsound);
+        audiodev->moonsound = NULL;
+    }
     if (audiodev->msxaudio) {
         msxaudioDestroy(audiodev->msxaudio);
+        audiodev->msxaudio = NULL;
     }
     if (audiodev->ym2413) {
         ym2413Destroy(audiodev->ym2413);
+        audiodev->ym2413 = NULL;
     }
     if (audiodev->psg) {
         ay8910Destroy(audiodev->psg);
+        audiodev->psg = NULL;
     }
     if (audiodev->mixer) {
         mixerDestroy(audiodev->mixer);
+        audiodev->mixer = NULL;
     }
 }
+
+extern const uint8_t moonsound_rom_start[] asm("_binary_MOONSOUND_rom_start");
+extern const uint8_t moonsound_rom_end[]   asm("_binary_MOONSOUND_rom_end");
 
 void audiodev_start(audiodev_handle_t audiodev)
 {
@@ -163,21 +176,24 @@ void audiodev_start(audiodev_handle_t audiodev)
     audiodev->psg = ay8910Create(audiodev->mixer, AY8910_MSX, PSGTYPE_AY8910);
     audiodev->ym2413 = ym2413Create(audiodev->mixer);
     audiodev->msxaudio = msxaudioCreate(audiodev->mixer);
+    audiodev->moonsound = moonsoundCreate(audiodev->mixer, (uint8_t*)moonsound_rom_start, ((uint8_t*)moonsound_rom_end - (uint8_t*)moonsound_rom_start), 1024);
 
     // Configure mixer
     mixerSetWriteCallback(audiodev->mixer, mixer_write_samples_callback, audiodev, 128);
     mixerSetMasterVolume(audiodev->mixer, 100);
     mixerEnableMaster(audiodev->mixer, 1);
-    mixerSetStereo(audiodev->mixer, 1);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_PSG, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO, 100);
+    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MOONSOUND, 100);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_PSG, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC, 0);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO, 100);
+    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MOONSOUND, 50);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_PSG, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO, 1);
+    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MOONSOUND, 1);
 
     mixerSetEnable(audiodev->mixer, 1);
 
@@ -195,9 +211,15 @@ static void audio_mixer_task(void *args)
     /* Enable the TX channel */
     while (1) {
         xSemaphoreTake(audiodev->mixer_sem, portMAX_DELAY);
+        uint32_t tbefore = xTaskGetTickCount();
         mixerSync(audiodev->mixer);
+        uint32_t tafter = xTaskGetTickCount();
         xSemaphoreGive(audiodev->mixer_sem);
 
+        uint32_t tdiff = tafter - tbefore;
+        if (tdiff >= 1) {
+            printf("%lu\n", tdiff);
+        }
         vTaskDelay(1);
     }
     vTaskDelete(NULL);

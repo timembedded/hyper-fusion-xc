@@ -59,7 +59,7 @@ typedef enum {
 
 #define MAX_CHANNELS 16
 
-typedef Int32* (*MixerUpdateCallback)(void*, UInt32);
+typedef Int32* (*MixerUpdateCallback)(void*, Int32*, UInt32);
 typedef Int32 (*MixerWriteCallback)(void*, Int16*, UInt32);
 typedef UInt32 (*GetSamplesToGenerateCallback)(void *ref);
 
@@ -76,13 +76,11 @@ Mixer* mixerGetGlobalMixer();
 Int32 mixerGetMasterVolume(Mixer* mixer, int leftRight);
 void mixerSetMasterVolume(Mixer* mixer, Int32 volume);
 void mixerEnableMaster(Mixer* mixer, Int32 enable);
-void mixerSetStereo(Mixer* mixer, Int32 stereo);
 
 Int32 mixerGetChannelTypeVolume(Mixer* mixer, Int32 channelType, int leftRight);
 void mixerSetChannelTypeVolume(Mixer* mixer, Int32 channelType, Int32 volume);
 void mixerSetChannelTypePan(Mixer* mixer, Int32 channelType, Int32 pan);
 void mixerEnableChannelType(Mixer* mixer, Int32 channelType, Int32 enable);
-Int32 mixerIsChannelTypeActive(Mixer* mixer, Int32 channelType, Int32 reset);
 
 /* Write callback registration for audio drivers */
 void mixerSetWriteCallback(Mixer* mixer, MixerWriteCallback callback, void*, int);

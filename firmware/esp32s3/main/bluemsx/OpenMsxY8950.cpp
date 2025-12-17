@@ -7,8 +7,8 @@
   */
 
 #include <cmath>
+#include <esp_heap_caps.h>
 #include "OpenMsxY8950.h"
-#include "esp_heap_caps.h"
 
 Y8950::tables_t *Y8950::tables;
 Y8950::Slot::slot_tables_t *Y8950::Slot::slot_tables;
@@ -802,7 +802,7 @@ bool Y8950::checkMuteHelper()
     return adpcm.muted();
 }
 
-int* Y8950::updateBuffer(int length)
+int* Y8950::updateBuffer(int *buffer, int length)
 {
     //PRT_DEBUG("Y8950: update buffer");
 

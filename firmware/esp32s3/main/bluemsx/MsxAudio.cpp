@@ -38,33 +38,19 @@
 #define OFFSETOF(s, a) ((int)(&((s*)0)->a))
 
 struct MsxAudio {
-    MsxAudio()
-    {
-        memset(defaultBuffer, 0, sizeof(defaultBuffer));
-    }
-
     Mixer* mixer;
     Int32  handle;
 
     Y8950* y8950;
     Int32  buffer[AUDIO_MONO_BUFFER_SIZE];
-    Int32  defaultBuffer[AUDIO_MONO_BUFFER_SIZE];
     UInt8  registerLatch;
  };
 
-MsxAudio* theMsxAudio = NULL;
 
-
-extern "C" Int32* msxaudioSync(void* ref, UInt32 count) 
+extern "C" Int32* msxaudioSync(void* ref, Int32 *buffer, UInt32 count) 
 {
     MsxAudio* msxaudio = (MsxAudio*)ref;
-    Int32* genBuf = NULL;
-
-    genBuf = (Int32*)msxaudio->y8950->updateBuffer(count);
-    if (genBuf == NULL) {
-        genBuf = msxaudio->defaultBuffer;
-    }
-    return genBuf;
+    return (Int32*)msxaudio->y8950->updateBuffer((int*)buffer, count);
 }
 
 
@@ -75,9 +61,9 @@ extern "C" void msxaudioDestroy(MsxAudioHndl rm) {
     ioPortUnregister(0xc1);
 
     mixerUnregisterChannel(msxaudio->mixer, msxaudio->handle);
-    theMsxAudio = NULL;
 
     delete msxaudio->y8950;
+    delete msxaudio;
 }
 
 
@@ -107,8 +93,6 @@ extern "C" void msxaudioWrite(MsxAudio* msxaudio, UInt16 ioPort, UInt8 value)
 extern "C" MsxAudioHndl msxaudioCreate(Mixer* mixer)
 {
     MsxAudio* msxaudio = new MsxAudio;
-
-    theMsxAudio = msxaudio;
 
     msxaudio->mixer = mixer;
     msxaudio->registerLatch = 0;

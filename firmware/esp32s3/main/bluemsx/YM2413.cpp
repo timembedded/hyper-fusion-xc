@@ -29,6 +29,7 @@
 #include "OpenMsxYM2413.h"
 #include "OpenMsxYM2413_2.h"
 #include <cstring>
+#include "Board.h"
 #include "IoPort.h"
 
 #define FREQUENCY        3579545
@@ -41,7 +42,6 @@ struct YM_2413 {
         else {
              ym2413 = new OpenYM2413_2(100);
         }
-        memset(defaultBuffer, 0, sizeof(defaultBuffer));
     }
 
     ~YM_2413() {
@@ -54,8 +54,6 @@ struct YM_2413 {
     OpenYM2413Base* ym2413;
     UInt8  address;
     UInt8  registers[256];
-    Int32  buffer[AUDIO_MONO_BUFFER_SIZE];
-    Int32  defaultBuffer[AUDIO_MONO_BUFFER_SIZE];
 };
 
 void ym2413Reset(YM_2413* ref)
@@ -77,23 +75,10 @@ void ym2413WriteData(YM_2413* ym2413, UInt8 data)
     ym2413->ym2413->writeReg(ym2413->address, data);
 }
 
-static Int32* ym2413Sync(void* ref, UInt32 count) 
+static Int32* ym2413Sync(void* ref, Int32 *buffer, UInt32 count) 
 {
     YM_2413* ym2413 = (YM_2413*)ref;
-    int* genBuf;
-    UInt32 i;
-
-    genBuf = ym2413->ym2413->updateBuffer(count);
-
-    if (genBuf == NULL) {
-        return ym2413->defaultBuffer;
-    }
-
-    for (i = 0; i < count; i++) {
-        ym2413->buffer[i] = genBuf[i];
-    }
-
-    return ym2413->buffer;
+    return (Int32*)ym2413->ym2413->updateBuffer((int*)buffer, count);
 }
 
 static void writeAddr(void *ym, UInt16 port, UInt8 data)

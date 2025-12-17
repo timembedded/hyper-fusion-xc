@@ -30,6 +30,11 @@
  
 #include "MsxTypes.h"
 
+// Oversampling config
+#define oversamplingYM2413 1
+#define boardGetY8950Oversampling 1
+#define boardGetMoonsoundOversampling 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -4,7 +4,7 @@
 // The file was originally written by Mitsutaka Okazaki.
 //
 #include "OpenMsxYM2413_2.h"
-#include "esp_heap_caps.h"
+#include <esp_heap_caps.h>
 
 #ifdef assert
 #undef assert
@@ -1005,7 +1005,7 @@ bool OpenYM2413_2::checkMuteHelper()
     return true;    // nothing is playing, then mute
 }
 
-int* OpenYM2413_2::updateBuffer(int length)
+int* OpenYM2413_2::updateBuffer(int *buffer, int length)
 {
     int* buf = buffer;
 

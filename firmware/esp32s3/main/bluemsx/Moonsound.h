@@ -1,7 +1,7 @@
 /*****************************************************************************
-** $Source: /cvsroot/bluemsx/blueMSX/Src/SoundChips/MsxAudio.h,v $
+** $Source: /cvsroot/bluemsx/blueMSX/Src/SoundChips/Moonsound.h,v $
 **
-** $Revision: 1.7 $
+** $Revision: 1.10 $
 **
 ** $Date: 2008/03/30 18:38:45 $
 **
@@ -25,8 +25,8 @@
 **
 ******************************************************************************
 */
-#ifndef MSXAUDIO_H
-#define MSXAUDIO_H
+#ifndef MOONSOUND_H
+#define MOONSOUND_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,19 +34,18 @@ extern "C" {
 
 #include "MsxTypes.h"
 #include "AudioMixer.h"
-
-typedef void* MsxAudioHndl;
+    
+typedef struct Moonsound Moonsound;
 
 /* Constructor and destructor */
-MsxAudioHndl msxaudioCreate(Mixer* mixer);
-void msxaudioDestroy(MsxAudioHndl rm);
-
-void msxaudioTick(UInt32 elapsedTime);
-
-Int32* msxaudioSync(void* ref, Int32 *buffer, UInt32 count);
+Moonsound* moonsoundCreate(Mixer* mixer, void* romData, int romSize, int sramSize);
+void moonsoundDestroy(Moonsound* moonsound);
+void moonsoundReset(Moonsound* moonsound);
 
 #ifdef __cplusplus
 }
 #endif
 
+
 #endif
+

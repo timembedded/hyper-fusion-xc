@@ -87,7 +87,6 @@ typedef struct {
     Int32 volIntRight;
     Int32 volCntLeft;
     Int32 volCntRight;
-    UInt32 active;
 } MixerChannel;
 
 struct Mixer
@@ -100,14 +99,14 @@ struct Mixer
     UInt32 begin;
     UInt32 index;
     UInt32 volIndex;
+    Int32   genBuffer[AUDIO_STEREO_BUFFER_SIZE];
+    Int32   mixBuffer[AUDIO_STEREO_BUFFER_SIZE];
     Int16   buffer[AUDIO_STEREO_BUFFER_SIZE];
     AudioTypeInfo audioTypeInfo[MIXER_CHANNEL_TYPE_COUNT];
     MixerChannel channels[MAX_CHANNELS];
     Int32   channelCount;
     Int32   handleCount;
     UInt32  oldTick;
-    Int32   dummyBuffer[AUDIO_STEREO_BUFFER_SIZE];
-    Int32   stereo;
     double  masterVolume;
     Int32   masterEnable;
     Int32   volIntLeft;
@@ -139,19 +138,6 @@ static void mixerRecalculateType(Mixer* mixer, int audioType)
             channel->pan            = type->pan;
             recalculateChannelVolume(mixer, channel);
         }
-    }
-}
-
-void mixerSetStereo(Mixer* mixer, Int32 stereo)
-{
-    int i;
-
-    mixer->stereo = stereo;
-    mixer->begin = 0;
-    mixer->index = 0;
-
-    for (i = 0; i < MIXER_CHANNEL_TYPE_COUNT; i++) {
-        mixerRecalculateType(mixer, i);
     }
 }
 
@@ -216,27 +202,6 @@ Int32 mixerGetChannelTypeVolume(Mixer* mixer, Int32 type, int leftRight)
     return volume;
 }
 
-Int32 mixerIsChannelTypeActive(Mixer* mixer, Int32 type, Int32 reset)
-{
-    int i;
-    Int32 active = 0;
-
-    updateVolumes(mixer);
-
-    for (i = 0; i < mixer->channelCount; i++) {
-        if (mixer->channels[i].type == type) {
-            if (mixer->channels[i].active) {
-                active = 1;
-            }
-            if (reset) {
-                mixer->channels[i].active = 0;
-            }
-        }
-    }
-
-    return active;
-}
-
 ///////////////////////////////////////////////////////
 
 static void recalculateChannelVolume(Mixer* mixer, MixerChannel* channel)
@@ -247,12 +212,6 @@ static void recalculateChannelVolume(Mixer* mixer, MixerChannel* channel)
 
     channel->volumeLeft  = channel->enable * mixer->masterEnable * (Int32)(1024 * mixer->masterVolume * volume * panLeft);
     channel->volumeRight = channel->enable * mixer->masterEnable * (Int32)(1024 * mixer->masterVolume * volume * panRight);
-
-    if (!mixer->stereo) {
-        Int32 tmp = (channel->volumeLeft + channel->volumeRight) / 2;
-        channel->volumeLeft  = tmp;
-        channel->volumeRight = tmp;
-    }
 }
 
 static void updateVolumes(Mixer* mixer)
@@ -392,8 +351,7 @@ void mixerSync(Mixer* mixer)
 {
     xSemaphoreTake(mixer->sync_sem, portMAX_DELAY);
 
-    Int16* buffer   = mixer->buffer;
-    Int32* chBuff[MAX_CHANNELS];
+    Int16* buffer = mixer->buffer;
     int i;
 
     UInt32 count = mixer->samplesCallback(mixer->samplesRef);
@@ -405,13 +363,8 @@ void mixerSync(Mixer* mixer)
 
     if (!mixer->enable) {
         while (count--) {
-            if (mixer->stereo) {
-                buffer[mixer->index++] = 0;
-                buffer[mixer->index++] = 0;
-            }
-            else {
-                buffer[mixer->index++] = 0;
-            }
+            buffer[mixer->index++] = 0;
+            buffer[mixer->index++] = 0;
             if (mixer->index >= mixer->fragmentSize) {
                 if (mixer->writeCallback != NULL) {
                     UInt32 written = mixer->writeCallback(mixer->writeRef, buffer, mixer->fragmentSize);
@@ -425,141 +378,85 @@ void mixerSync(Mixer* mixer)
         return;
     }
     
+    memset(mixer->mixBuffer, 0, sizeof(Int32) * count * 2);
+
     for (i = 0; i < mixer->channelCount; i++) {
-        if (mixer->channels[i].updateCallback != NULL) {
-            chBuff[i] = mixer->channels[i].updateCallback(mixer->channels[i].ref, count);
+        if (mixer->channels[i].updateCallback == NULL) {
+            continue;
         }
-        else {
-            chBuff[i] = NULL;
+
+        Int32* gen = mixer->genBuffer;
+        Int32* mix = mixer->mixBuffer;
+
+        gen = mixer->channels[i].updateCallback(mixer->channels[i].ref, gen, count);
+        if (gen == NULL) {
+            continue;
         }
-    }
 
-    if (mixer->stereo) {
-        while (count--) {
-            Int32 left = 0;
-            Int32 right = 0;
+        for(int sample = 0; sample < count; sample++) {
+            Int32 chanLeft;
+            Int32 chanRight;
 
-            for (i = 0; i < mixer->channelCount; i++) {
-                Int32 chanLeft;
-                Int32 chanRight;
-
-                if (chBuff[i] == NULL) {
-                    continue;
-                }
-
-                if (mixer->channels[i].stereo) {
-                    chanLeft = mixer->channels[i].volumeLeft * *chBuff[i]++;
-                    chanRight = mixer->channels[i].volumeRight * *chBuff[i]++;
-                }
-                else {
-                    Int32 tmp = *chBuff[i]++;
-                    chanLeft = mixer->channels[i].volumeLeft * tmp;
-                    chanRight = mixer->channels[i].volumeRight * tmp;
-                }
-
-                mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
-                mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
-
-                left  += chanLeft;
-                right += chanRight;
+            if (mixer->channels[i].stereo) {
+                chanLeft = mixer->channels[i].volumeLeft * *gen++;
+                chanRight = mixer->channels[i].volumeRight * *gen++;
+            }
+            else {
+                Int32 tmp = *gen++;
+                chanLeft = mixer->channels[i].volumeLeft * tmp;
+                chanRight = mixer->channels[i].volumeRight * tmp;
             }
 
-            left  /= 4096;
-            right /= 4096;
+            mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
+            mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
 
-            mixer->volCntLeft  += left  > 0 ? left  : -left;
-            mixer->volCntRight += right > 0 ? right : -right;
+            *mix++ += chanLeft;
+            *mix++ += chanRight;
+        }
+    }
+    
+    Int32* mix = mixer->mixBuffer;
+    while(count--) {
+        Int32 left = *mix++;
+        Int32 right = *mix++;
 
-            if (left  >  32767) { left  = 32767; }
-            if (left  < -32767) { left  = -32767; }
-            if (right >  32767) { right = 32767; }
-            if (right < -32767) { right = -32767; }
+        left  /= 4096;
+        right /= 4096;
 
-            buffer[mixer->index++] = (Int16)left;
-            buffer[mixer->index++] = (Int16)right;
+        mixer->volCntLeft  += left  > 0 ? left  : -left;
+        mixer->volCntRight += right > 0 ? right : -right;
 
-            if (mixer->index >= mixer->fragmentSize) {
-                if (mixer->writeCallback != NULL) {
-                    UInt32 written = mixer->writeCallback(mixer->writeRef, &buffer[mixer->begin], mixer->fragmentSize);
-                    if (written != mixer->fragmentSize) {
-                        mixer->begin += written;
-                        if (mixer->index + mixer->fragmentSize >= AUDIO_STEREO_BUFFER_SIZE) {
-                            // prevent overflow, need to copy
-                            ESP_LOGW(TAG, "Unexpected audio buffer overflow prevention");
-                            memcpy(buffer, &buffer[mixer->begin], (mixer->index - mixer->begin) * sizeof(UInt16));
-                            mixer->index -= mixer->begin;
-                            mixer->begin = 0;
-                        }
-                    }else{
+        if (left  >  32767) { left  = 32767; }
+        if (left  < -32767) { left  = -32767; }
+        if (right >  32767) { right = 32767; }
+        if (right < -32767) { right = -32767; }
+
+        buffer[mixer->index++] = (Int16)left;
+        buffer[mixer->index++] = (Int16)right;
+
+        if (mixer->index >= mixer->fragmentSize) {
+            if (mixer->writeCallback != NULL) {
+                UInt32 written = mixer->writeCallback(mixer->writeRef, &buffer[mixer->begin], mixer->fragmentSize);
+                if (written != mixer->fragmentSize) {
+                    mixer->begin += written;
+                    if (mixer->index + mixer->fragmentSize >= AUDIO_STEREO_BUFFER_SIZE) {
+                        // prevent overflow, need to copy
+                        ESP_LOGW(TAG, "Unexpected audio buffer overflow prevention");
+                        memcpy(buffer, &buffer[mixer->begin], (mixer->index - mixer->begin) * sizeof(UInt16));
+                        mixer->index -= mixer->begin;
                         mixer->begin = 0;
-                        mixer->index = 0;
                     }
                 }else{
                     mixer->begin = 0;
                     mixer->index = 0;
                 }
-            }
-
-            mixer->volIndex++;
-        }
-    }
-    else {
-        while (count--) {
-            Int32 left = 0;
-
-            for (i = 0; i < mixer->channelCount; i++) {
-                Int32 chanLeft;
-
-                if (chBuff[i] == NULL) {
-                    continue;
-                }
-
-                if (mixer->channels[i].stereo) {
-                    Int32 tmp = *chBuff[i]++;
-                    chanLeft = mixer->channels[i].volumeLeft * (tmp + *chBuff[i]++) / 2;
-                }
-                else {
-                    chanLeft = mixer->channels[i].volumeLeft * *chBuff[i]++;
-                }
-
-                mixer->channels[i].volCntLeft  += (chanLeft > 0 ? chanLeft : -chanLeft) / 2048;
-                mixer->channels[i].volCntRight += (chanLeft > 0 ? chanLeft : -chanLeft) / 2048;
-                left  += chanLeft;
-            }
-
-            left  /= 4096;
-
-            mixer->volCntLeft  += left > 0 ? left : -left;
-            mixer->volCntRight += left > 0 ? left : -left;
-
-            if (left  >  32767) left  = 32767;
-            if (left  < -32767) left  = -32767;
-
-            buffer[mixer->index++] = (Int16)left;
-
-            if (mixer->index >= mixer->fragmentSize) {
-                if (mixer->writeCallback != NULL) {
-                    UInt32 written = mixer->writeCallback(mixer->writeRef, &buffer[mixer->begin], mixer->fragmentSize);
-                    if (written != mixer->fragmentSize) {
-                        mixer->begin += written;
-                        if (mixer->index + mixer->fragmentSize >= AUDIO_STEREO_BUFFER_SIZE) {
-                            // prevent overflow, need to copy
-                            ESP_LOGW(TAG, "Unexpected audio buffer overflow prevention");
-                            memcpy(buffer, &buffer[mixer->begin], (mixer->index - mixer->begin) * sizeof(UInt16));
-                            mixer->index -= mixer->begin;
-                            mixer->begin = 0;
-                        }
-                    }else{
-                        mixer->begin = 0;
-                        mixer->index = 0;
-                    }
-                }
+            }else{
                 mixer->begin = 0;
                 mixer->index = 0;
             }
-
-            mixer->volIndex++;
         }
+
+        mixer->volIndex++;
     }
 
     if (mixer->volIndex >= 441) {
@@ -603,10 +500,6 @@ void mixerSync(Mixer* mixer)
 
             mixer->channels[i].volCntLeft  = 0;
             mixer->channels[i].volCntRight = 0;
-
-            if (chBuff[i] && chBuff[i][0]) {
-                mixer->channels[i].active++;
-            }
         }
         mixer->volIndex = 0;
     }

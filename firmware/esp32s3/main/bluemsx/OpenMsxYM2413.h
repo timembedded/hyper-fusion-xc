@@ -33,7 +33,7 @@ class SoundDevice
         bool isInternalMuted() const { return internalMuted; }
     public:
         virtual void setSampleRate(int newSampleRate, int Oversampling) = 0;
-        virtual int* updateBuffer(int length) = 0;
+        virtual int* updateBuffer(int *buffer, int length) = 0;
 
     private:
         bool internalMuted;
@@ -54,7 +54,7 @@ public:
     virtual void writeReg(uint8_t r, uint8_t v) = 0;
     virtual uint8_t peekReg(uint8_t r) = 0;
     
-    virtual int* updateBuffer(int length) = 0;
+    virtual int* updateBuffer(int *buffer, int length) = 0;
     virtual void setSampleRate(int sampleRate, int Oversampling) = 0;
 };
 
@@ -138,7 +138,7 @@ class OpenYM2413 : public OpenYM2413Base
         virtual uint8_t peekReg(uint8_t r) { return regs[r]; }
         
         virtual void setInternalVolume(short newVolume);
-        virtual int* updateBuffer(int length);
+        virtual int* updateBuffer(int *buffer, int length);
         virtual void setSampleRate(int sampleRate, int Oversampling);
 
     private:
@@ -161,7 +161,6 @@ class OpenYM2413 : public OpenYM2413Base
         void update_instrument_zero(uint8_t r);
         void setRhythmMode(bool newMode);
 
-        int buffer[AUDIO_MONO_BUFFER_SIZE];
         int oplOversampling;
 
         int in[5];

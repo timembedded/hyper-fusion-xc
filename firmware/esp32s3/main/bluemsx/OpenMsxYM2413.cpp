@@ -1366,7 +1366,7 @@ int OpenYM2413::filter(int input) {
 }
 
 
-int* OpenYM2413::updateBuffer(int length)
+int* OpenYM2413::updateBuffer(int *buffer, int length)
 {
     if (isInternalMuted()) {
         return NULL;

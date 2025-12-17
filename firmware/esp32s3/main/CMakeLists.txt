@@ -7,6 +7,7 @@ idf_component_register(
     "emutimer.c"
     "fpga.c"
     "audiodev.c"
+    "bluemsx//fifo.c"
     "bluemsx//Board.c"
     "bluemsx//AY8910.c"
     "bluemsx//AudioMixer.c"
@@ -16,7 +17,9 @@ idf_component_register(
     "bluemsx//MsxAudio.cpp"
     "bluemsx//OpenMsxY8950.cpp"
     "bluemsx//OpenMsxY8950Adpcm.cpp"
-    "bluemsx//fifo.c"
+    "bluemsx//OpenMsxYMF262.cpp"
+    "bluemsx//OpenMsxYMF278.cpp"
+    "bluemsx//Moonsound.cpp"
   PRIV_REQUIRES
     nvs_flash
     esp_eth
@@ -27,6 +30,8 @@ idf_component_register(
     esp_driver_i2s
   INCLUDE_DIRS
     "."
+  EMBED_FILES
+    "MOONSOUND.rom"
 )
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error -Wno-error=narrowing -Wno-narrowing -mtext-section-literals)

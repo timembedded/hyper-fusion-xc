@@ -42,7 +42,7 @@ class SoundDevice
         bool isInternalMuted() const { return internalMuted; }
     public:
         virtual void setSampleRate(int newSampleRate, int Oversampling) = 0;
-        virtual int* updateBuffer(int length) = 0;
+        virtual int* updateBuffer(int *buffer, int length) = 0;
 
     private:
         bool internalMuted;
@@ -246,7 +246,7 @@ public:
     uint8_t readStatus();
     
     virtual void setSampleRate(int sampleRate, int Oversampling);
-    virtual int* updateBuffer(int length);
+    virtual int* updateBuffer(int *buffer, int length);
     
 private:
     // SoundDevice
@@ -294,8 +294,6 @@ private:
     void setStatus(uint8_t flags);
     void resetStatus(uint8_t flags);
     void changeStatusMask(uint8_t newMask);
-
-    int buffer[AUDIO_MONO_BUFFER_SIZE];
 
     int adr;
     int output[2];
