@@ -20,12 +20,12 @@ class SoundDevice
 {
     public:
         SoundDevice() : internalMuted(true) {}
-        void setVolume(short newVolume) {
+        void setVolume(int16_t newVolume) {
             setInternalVolume(newVolume);
         }
 
     protected:
-        virtual void setInternalVolume(short newVolume) = 0;
+        virtual void setInternalVolume(int16_t newVolume) = 0;
         void setInternalMute(bool muted) { internalMuted = muted; }
         bool isInternalMuted() const { return internalMuted; }
     public:
@@ -51,8 +51,8 @@ class YMF278Slot
         inline int compute_am();
         void set_lfo(int newlfo);
 
-        short wave;     // wavetable number
-        short FN;       // f-number
+        int16_t wave;     // wavetable number
+        int16_t FN;       // f-number
         char OCT;       // octave
         char PRVB;      // pseudo-reverb
         char LD;        // level direct
@@ -63,30 +63,60 @@ class YMF278Slot
         char AM;        // AM level
 
         char AR;
+        uint8_t AR_rate;
+        uint8_t AR_shift;
+        uint16_t AR_mask;
+        uint8_t AR_select;
         char D1R;
+        uint8_t D1R_rate;
+        uint8_t D1R_shift;
+        uint16_t D1R_mask;
+        uint8_t D1R_select;
         int  DL;
         char D2R;
+        uint8_t D2R_rate;
+        uint8_t D2R_shift;
+        uint16_t D2R_mask;
+        uint8_t D2R_select;
         char RC;        // rate correction
         char RR;
+        uint8_t RR_rate;
+        uint8_t RR_shift;
+        uint16_t RR_mask;
+        uint8_t RR_select;
+        uint8_t C5_rate;
+        uint8_t C5_shift;
+        uint16_t C5_mask;
+        uint8_t C5_select;
+
+        void update_AR();
+        void update_D1R();
+        void update_D2R();
+        void update_RR();
+        void update_C5();
 
         int step;               // fixed-point frequency step
         int stepptr;        // fixed-point pointer into the sample
         int pos;
-        short sample1, sample2;
+        int16_t sample;
 
         bool active;        // slot keyed on
         uint8_t bits;       // width of the samples
-        int startaddr;
+        union {
+            uint8_t *sampleptr;
+            uint16_t *sampleptr16;
+        };
         int loopaddr;
         int endaddr;
 
         uint8_t state;
-        int env_vol;
-        unsigned int env_vol_step;
-        unsigned int env_vol_lim;
+        int16_t env_vol;
+        uint16_t env_vol_step;
+        uint16_t env_vol_lim;
 
         bool lfo_active;
         int lfo_cnt;
+        int lfo_idx;
         int lfo_step;
         int lfo_max;
 };
@@ -96,26 +126,19 @@ static const int MASTER_CLK = 33868800;
 class YMF278 : public SoundDevice
 {
     public:
-        YMF278(short volume, int ramSize, void* romData, int romSize);
+        YMF278(int16_t volume, int ramSize, void* romData, int romSize);
         virtual ~YMF278();
         void reset();
         void writeRegOPL4(uint8_t reg, uint8_t data);
         uint8_t readRegOPL4(uint8_t reg);
-        void* getRom() { return rom; }  
-        void* getRam() { return ram; }  
-        int getRomSize() { return endRom; }
-        int getRamSize() { return endRam - endRom; }
         virtual void setSampleRate(int sampleRate, int Oversampling);
-        virtual void setInternalVolume(short newVolume);
+        virtual void setInternalVolume(int16_t newVolume);
         virtual int* updateBuffer(int *buffer, int length);
 
-        void loadState();
-        void saveState();
-    
     private:
         uint8_t readMem(unsigned int address);
         void writeMem(unsigned int address, uint8_t value);
-        short getSample(YMF278Slot &op);
+        int16_t getSample(YMF278Slot &op);
         void advance();
         void checkMute();
         bool anyActive();
@@ -123,18 +146,15 @@ class YMF278 : public SoundDevice
 
         uint8_t* rom;
         uint8_t* ram;
-
-        int oplOversampling;
-        double freqbase;
+        uint8_t* ram12bit;
+        uint8_t* rom12bit;
 
         YMF278Slot slots[24];
 
         int ramSize;
         
-        unsigned int eg_cnt;    // global envelope generator counter
-        unsigned int eg_timer;  // global envelope generator counter
-        unsigned int eg_timer_add;      // step of eg_timer
-        unsigned int eg_timer_overflow; // envelope generator timer overlfows every 1 sample (on real chip)
+        uint16_t eg_cnt;    // global envelope generator counter
+        //uint32_t eg_timer;  // global envelope generator counter
         
         char wavetblhdr;
         char memmode;
@@ -143,17 +163,16 @@ class YMF278 : public SoundDevice
         int fm_l, fm_r;
         int pcm_l, pcm_r;
 
-        unsigned int endRom;
-        unsigned int endRam;
+        uint32_t endRom;
+        uint32_t endRam;
 
         // precalculated attenuation values with some marging for
         // enveloppe and pan levels
-        int volume[256 * 4];
+        int16_t volume[256 * 4];
 
         uint8_t regs[256];
 
-        unsigned long LD_Time;
-        unsigned long BUSY_Time;
+        int vold[24];
 };
 
 #endif

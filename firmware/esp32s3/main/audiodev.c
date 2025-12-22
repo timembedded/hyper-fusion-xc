@@ -105,20 +105,20 @@ audiodev_handle_t audiodev_create(fpga_handle_t fpga_handle, write_samples_callb
     return audiodev;
 }
 
-static uint32_t mixer_get_samples_callback(void *ref)
+static uint32_t IRAM_ATTR mixer_get_samples_callback(void *ref)
 {
     audiodev_handle_t audiodev = (audiodev_handle_t)ref;
 
     // Get the amount of samples to generate
     uint32_t count = timer_get_duration(audiodev->timer_mixer);
-    if (count > 500) {
+    if (count >= 1000) {
         ESP_LOGI(TAG, "mix %d", count);
     }
 
     return count;
 }
 
-static Int32 mixer_write_samples_callback(void* arg, Int16* buffer, UInt32 count)
+static Int32 IRAM_ATTR mixer_write_samples_callback(void* arg, Int16* buffer, UInt32 count)
 {
     audiodev_handle_t audiodev = (audiodev_handle_t)arg;
     return audiodev->write_samples_callback(arg, buffer, count);
@@ -204,9 +204,10 @@ void audiodev_start(audiodev_handle_t audiodev)
     xSemaphoreGive(audiodev->mixer_sem);
 }
 
-static void audio_mixer_task(void *args)
+static void IRAM_ATTR audio_mixer_task(void *args)
 {
     audiodev_handle_t audiodev = (audiodev_handle_t)args;
+    uint32_t tdiffprev = 0;
 
     /* Enable the TX channel */
     while (1) {
@@ -217,8 +218,9 @@ static void audio_mixer_task(void *args)
         xSemaphoreGive(audiodev->mixer_sem);
 
         uint32_t tdiff = tafter - tbefore;
-        if (tdiff >= 1) {
-            printf("%lu\n", tdiff);
+        if (tdiff != tdiffprev) {
+            tdiffprev = tdiff;
+            printf("Mixer CPU Load: %lu\n", tdiff);
         }
         vTaskDelay(1);
     }

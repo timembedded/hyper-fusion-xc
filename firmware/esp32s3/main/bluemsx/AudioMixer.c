@@ -347,7 +347,7 @@ void mixerReset(Mixer* mixer)
     mixer->index = 0;
 }
 
-void mixerSync(Mixer* mixer)
+void IRAM_ATTR mixerSync(Mixer* mixer)
 {
     xSemaphoreTake(mixer->sync_sem, portMAX_DELAY);
 

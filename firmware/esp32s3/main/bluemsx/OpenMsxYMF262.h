@@ -158,8 +158,6 @@ class YMF262 : public SoundDevice
         void checkMute();
         bool checkMuteHelper();
 
-        int oplOversampling;
-
         YMF262Channel channels[18]; // OPL3 chips have 18 channels
 
         uint8_t reg[512];

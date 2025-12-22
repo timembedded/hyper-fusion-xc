@@ -50,44 +50,44 @@
 #pragma warning( disable : 4355 )
 #endif
 
-const double PI = 3.14159265358979323846;
+#define PI 3.14159265358979323846
 
-const int FREQ_SH   = 16;  // 16.16 fixed point (frequency calculations)
-const int EG_SH     = 16;  // 16.16 fixed point (EG timing)
-const int LFO_SH    = 24;  //  8.24 fixed point (LFO calculations)
-const int TIMER_SH  = 16;  // 16.16 fixed point (timers calculations)
-const int FREQ_MASK = (1 << FREQ_SH) - 1;
-const unsigned int EG_TIMER_OVERFLOW = 1 << EG_SH;
+#define FREQ_SH   16  // 16.16 fixed point (frequency calculations)
+#define EG_SH     16  // 16.16 fixed point (EG timing)
+#define LFO_SH    24  //  8.24 fixed point (LFO calculations)
+#define TIMER_SH  16  // 16.16 fixed point (timers calculations)
+#define FREQ_MASK ((1 << FREQ_SH) - 1)
+#define EG_TIMER_OVERFLOW (1U << EG_SH)
 
 // envelope output entries
-const int ENV_BITS    = 10;
-const int ENV_LEN     = 1 << ENV_BITS;
-const double ENV_STEP = 128.0 / ENV_LEN;
+#define ENV_BITS   10
+#define ENV_LEN    (1 << ENV_BITS)
+#define ENV_STEP   (128.0 / ENV_LEN)
 
-const int MAX_ATT_INDEX = (1 << (ENV_BITS - 1)) - 1; //511
-const int MIN_ATT_INDEX = 0;
+#define MAX_ATT_INDEX ((1 << (ENV_BITS - 1)) - 1) //511
+#define MIN_ATT_INDEX 0
 
 // sinwave entries
-const int SIN_BITS = 10;
-const int SIN_LEN  = 1 << SIN_BITS;
-const int SIN_MASK = SIN_LEN - 1;
+#define SIN_BITS  10
+#define SIN_LEN   (1 << SIN_BITS)
+#define SIN_MASK  (SIN_LEN - 1)
 
-const int TL_RES_LEN = 256; // 8 bits addressing (real chip)
+#define TL_RES_LEN 256 // 8 bits addressing (real chip)
 
 // register number to channel number , slot offset
-const uint8_t SLOT1 = 0;
-const uint8_t SLOT2 = 1;
+#define SLOT1 0
+#define SLOT2 1
 
 // Envelope Generator phases
-const int EG_ATT = 4;
-const int EG_DEC = 3;
-const int EG_SUS = 2;
-const int EG_REL = 1;
-const int EG_OFF = 0;
+#define EG_ATT 4
+#define EG_DEC 3
+#define EG_SUS 2
+#define EG_REL 1
+#define EG_OFF 0
 
 
 // mapping of register number (offset) to slot number used by the emulator
-const int slot_array[32] =
+const static DRAM_ATTR int slot_array[32] =
 {
      0,  2,  4,  1,  3,  5, -1, -1,
      6,  8, 10,  7,  9, 11, -1, -1,
@@ -99,7 +99,7 @@ const int slot_array[32] =
 // table is 3dB/octave , DV converts this into 6dB/octave
 // 0.1875 is bit 0 weight of the envelope counter (volume) expressed in the 'decibel' scale
 #define DV(x) (int)(x / (0.1875/2.0))
-const unsigned ksl_tab[8 * 16] =
+const static DRAM_ATTR unsigned ksl_tab[8 * 16] =
 {
     // OCT 0
     DV( 0.000), DV( 0.000), DV( 0.000), DV( 0.000),
@@ -147,15 +147,15 @@ const unsigned ksl_tab[8 * 16] =
 // sustain level table (3dB per step)
 // 0 - 15: 0, 3, 6, 9,12,15,18,21,24,27,30,33,36,39,42,93 (dB)
 #define SC(db) (unsigned) (db * (2.0/ENV_STEP))
-const unsigned sl_tab[16] = {
+const static DRAM_ATTR unsigned sl_tab[16] = {
  SC( 0), SC( 1), SC( 2), SC(3 ), SC(4 ), SC(5 ), SC(6 ), SC( 7),
  SC( 8), SC( 9), SC(10), SC(11), SC(12), SC(13), SC(14), SC(31)
 };
 #undef SC
 
 
-const uint8_t RATE_STEPS = 8;
-const uint8_t eg_inc[15 * RATE_STEPS] =
+#define RATE_STEPS 8
+const static DRAM_ATTR uint8_t eg_inc[15 * RATE_STEPS] =
 {
 //cycle:0 1  2 3  4 5  6 7
         0,1, 0,1, 0,1, 0,1, //  0  rates 00..12 0 (increment by 0 or 1)
@@ -181,7 +181,7 @@ const uint8_t eg_inc[15 * RATE_STEPS] =
 
 #define O(a) (a*RATE_STEPS)
 // note that there is no O(13) in this table - it's directly in the code
-const uint8_t eg_rate_select[16 + 64 + 16] =
+const static DRAM_ATTR uint8_t eg_rate_select[16 + 64 + 16] =
 {
     // Envelope Generator rates (16 + 64 rates + 16 RKS)
     // 16 infinite time rates
@@ -222,7 +222,7 @@ const uint8_t eg_rate_select[16 + 64 + 16] =
 //shift 12,   11,   10,   9,   8,   7,   6,  5,  4,  3,  2,  1,  0,  0,  0,  0
 //mask  4095, 2047, 1023, 511, 255, 127, 63, 31, 15, 7,  3,  1,  0,  0,  0,  0
 #define O(a) (a*1)
-const uint8_t eg_rate_shift[16 + 64 + 16] =
+const static DRAM_ATTR uint8_t eg_rate_shift[16 + 64 + 16] =
 {
     // Envelope Generator counter shifts (16 + 64 rates + 16 RKS)
     // 16 infinite time rates
@@ -256,7 +256,7 @@ const uint8_t eg_rate_shift[16 + 64 + 16] =
 
 // multiple table
 #define ML(x) (uint8_t)(2 * x)
-const uint8_t mul_tab[16] =
+const static DRAM_ATTR uint8_t mul_tab[16] =
 {
     // 1/2, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,10,12,12,15,15
     ML( 0.5),ML( 1.0),ML( 2.0),ML( 3.0),ML( 4.0),ML( 5.0),ML( 6.0),ML( 7.0),
@@ -272,13 +272,13 @@ const uint8_t mul_tab[16] =
 //  2  - sinus sign bit           (Y axis)
 //  TL_RES_LEN - sinus resolution (X axis)
 
-const int TL_TAB_LEN = 13 * 2 * TL_RES_LEN;
+#define TL_TAB_LEN (13 * 2 * TL_RES_LEN)
 static int tl_tab[TL_TAB_LEN];
-const int ENV_QUIET = TL_TAB_LEN >> 4;
+#define ENV_QUIET (TL_TAB_LEN >> 4)
 
 // sin waveform table in 'decibel' scale
 // there are eight waveforms on OPL3 chips
-static unsigned int sin_tab[SIN_LEN * 8];
+static DRAM_ATTR unsigned int sin_tab[SIN_LEN * 8];
 
 
 // LFO Amplitude Modulation table (verified on real YM3812)
@@ -293,8 +293,8 @@ static unsigned int sin_tab[SIN_LEN * 8];
 // When AM = 1 data is used directly
 // When AM = 0 data is divided by 4 before being used (loosing precision is important)
 
-const unsigned int LFO_AM_TAB_ELEMENTS = 210;
-const uint8_t lfo_am_table[LFO_AM_TAB_ELEMENTS] =
+#define LFO_AM_TAB_ELEMENTS 210U
+const static DRAM_ATTR uint8_t lfo_am_table[LFO_AM_TAB_ELEMENTS] =
 {
     0,0,0,0,0,0,0,
     1,1,1,1,
@@ -351,7 +351,7 @@ const uint8_t lfo_am_table[LFO_AM_TAB_ELEMENTS] =
 };
 
 // LFO Phase Modulation table (verified on real YM3812)
-const int lfo_pm_table[8 * 8 * 2] =
+const static DRAM_ATTR int lfo_pm_table[8 * 8 * 2] =
 {
     // FNUM2/FNUM = 00 0xxxxxxx (0x0000)
     0, 0, 0, 0, 0, 0, 0, 0, //LFO PM depth = 0
@@ -411,7 +411,7 @@ YMF262Channel::YMF262Channel()
 
 
 // advance LFO to next sample
-void YMF262::advance_lfo()
+void IRAM_ATTR YMF262::advance_lfo()
 {
     // LFO
     lfo_am_cnt += lfo_am_inc;
@@ -431,14 +431,10 @@ void YMF262::advance_lfo()
 }
 
 // advance to next sample
-void YMF262::advance()
+void IRAM_ATTR YMF262::advance()
 {
     eg_timer += eg_timer_add;
 
-    if (eg_timer > 4 * EG_TIMER_OVERFLOW) {
-        eg_timer = EG_TIMER_OVERFLOW;
-        printf("YMF262: EG timer overflow!\n");
-    }
     while (eg_timer >= EG_TIMER_OVERFLOW) {
         eg_timer -= EG_TIMER_OVERFLOW;
         eg_cnt++;
@@ -562,7 +558,7 @@ void YMF262::advance()
 }
 
 
-signed int op_calc(unsigned phase, unsigned env, signed int pm, unsigned int wave_tab)
+signed int IRAM_ATTR op_calc(unsigned phase, unsigned env, signed int pm, unsigned int wave_tab)
 {
     int i = (phase & ~FREQ_MASK) + (pm << 16);
     int p = (env << 4) + sin_tab[wave_tab + ((i >> FREQ_SH ) & SIN_MASK)];
@@ -572,7 +568,7 @@ signed int op_calc(unsigned phase, unsigned env, signed int pm, unsigned int wav
     return tl_tab[p];
 }
 
-signed int op_calc1(unsigned phase, unsigned int env, signed int pm, unsigned int wave_tab)
+signed int IRAM_ATTR op_calc1(unsigned phase, unsigned int env, signed int pm, unsigned int wave_tab)
 {
     int i = (phase & ~FREQ_MASK) + pm;
     int p = (env << 4) + sin_tab[wave_tab + ((i >> FREQ_SH) & SIN_MASK)];
@@ -589,7 +585,7 @@ inline int YMF262Slot::volume_calc(uint8_t LFO_AM)
 
 // calculate output of a standard 2 operator channel
 // (or 1st part of a 4-op channel)
-void YMF262Channel::chan_calc(uint8_t LFO_AM)
+void IRAM_ATTR YMF262Channel::chan_calc(uint8_t LFO_AM)
 {
     chanOut[PHASE_MOD1] = 0;
     chanOut[PHASE_MOD2] = 0;
@@ -617,7 +613,7 @@ void YMF262Channel::chan_calc(uint8_t LFO_AM)
 }
 
 // calculate output of a 2nd part of 4-op channel
-void YMF262Channel::chan_calc_ext(uint8_t LFO_AM)
+void IRAM_ATTR YMF262Channel::chan_calc_ext(uint8_t LFO_AM)
 {
     chanOut[PHASE_MOD1] = 0;
 
@@ -667,7 +663,7 @@ void YMF262Channel::chan_calc_ext(uint8_t LFO_AM)
 //    8     14,17     B8        A8            +           +     +
 
 // calculate rhythm
-void YMF262::chan_calc_rhythm(bool noise)
+void IRAM_ATTR YMF262::chan_calc_rhythm(bool noise)
 {
     YMF262Slot& SLOT6_1 = channels[6].slots[SLOT1];
     YMF262Slot& SLOT6_2 = channels[6].slots[SLOT2];
@@ -942,9 +938,10 @@ void YMF262::init_tables(void)
 
 void YMF262::setSampleRate(int sampleRate, int Oversampling)
 {
-    oplOversampling = Oversampling;
     const int CLCK_FREQ = 14318180;
-    double freqbase  = ((double)CLCK_FREQ / (8.0 * 36)) / (double)(sampleRate * oplOversampling);
+    double freqbase  = ((double)CLCK_FREQ / (8.0 * 36)) / (double)sampleRate;
+
+    printf("YMF262: set sample rate %dHz, freqbase=%f\n", sampleRate, freqbase);
 
     // make fnumber -> increment counter table
     for (int i = 0; i < 1024; i++) {
@@ -1021,7 +1018,7 @@ void YMF262Channel::CALC_FCSLOT(YMF262Slot &slot)
 }
 
 // set multi,am,vib,EG-TYP,KSR,mul
-void YMF262::set_mul(uint8_t sl, uint8_t v)
+void IRAM_ATTR YMF262::set_mul(uint8_t sl, uint8_t v)
 {
     int chan_no = sl / 2;
     YMF262Channel &ch  = channels[chan_no];
@@ -1078,7 +1075,7 @@ void YMF262::set_mul(uint8_t sl, uint8_t v)
 }
 
 // set ksl & tl
-void YMF262::set_ksl_tl(uint8_t sl, uint8_t v)
+void IRAM_ATTR YMF262::set_ksl_tl(uint8_t sl, uint8_t v)
 {
     int chan_no = sl/2;
     YMF262Channel &ch = channels[chan_no];
@@ -1135,7 +1132,7 @@ void YMF262::set_ksl_tl(uint8_t sl, uint8_t v)
 }
 
 // set attack rate & decay rate
-void YMF262::set_ar_dr(uint8_t sl, uint8_t v)
+void IRAM_ATTR YMF262::set_ar_dr(uint8_t sl, uint8_t v)
 {
     YMF262Channel &ch = channels[sl / 2];
     YMF262Slot &slot = ch.slots[sl & 1];
@@ -1160,7 +1157,7 @@ void YMF262::set_ar_dr(uint8_t sl, uint8_t v)
 }
 
 // set sustain level & release rate
-void YMF262::set_sl_rr(uint8_t sl, uint8_t v)
+void IRAM_ATTR YMF262::set_sl_rr(uint8_t sl, uint8_t v)
 {
     YMF262Channel &ch = channels[sl / 2];
     YMF262Slot &slot = ch.slots[sl & 1];
@@ -1172,7 +1169,7 @@ void YMF262::set_sl_rr(uint8_t sl, uint8_t v)
     slot.eg_sel_rr = eg_rate_select[slot.rr + slot.ksr];
 }
 
-void YMF262::update_channels(YMF262Channel &ch)
+void IRAM_ATTR YMF262::update_channels(YMF262Channel &ch)
 {
     // update channel passed as a parameter and a channel at CH+=3;
     if (ch.extended) {
@@ -1201,7 +1198,7 @@ void YMF262::writeReg(int r, uint8_t v)
     writeRegForce(r, v);
     checkMute();
 }
-void YMF262::writeRegForce(int r, uint8_t v)
+void IRAM_ATTR YMF262::writeRegForce(int r, uint8_t v)
 {
     reg[r] = v;
 
@@ -1776,8 +1773,6 @@ YMF262::YMF262(short volume, void* ref)
     rhythm = nts = 0;
     OPL3_mode = false;
 
-    oplOversampling = 1;
-
     init_tables();
 
     reset();
@@ -1793,7 +1788,7 @@ void YMF262::checkMute()
     //PRT_DEBUG("YMF262: muted " << mute);
     setInternalMute(mute);
 }
-bool YMF262::checkMuteHelper()
+bool IRAM_ATTR YMF262::checkMuteHelper()
 {
     // TODO this doesn't always mute when possible
     for (int i = 0; i < 18; i++) {
@@ -1809,7 +1804,7 @@ bool YMF262::checkMuteHelper()
     return true;
 }
 
-int* YMF262::updateBuffer(int *buffer, int length)
+int* IRAM_ATTR YMF262::updateBuffer(int *buffer, int length)
 {
     if (isInternalMuted()) {
         return NULL;
@@ -1821,93 +1816,90 @@ int* YMF262::updateBuffer(int *buffer, int length)
     while (length--) {
         int a = 0;
         int b = 0;
-        int c = 0;
-        int d = 0;
-        int count = oplOversampling;
-        while (count--) {
-            advance_lfo();
 
-            // clear channel outputs
-            memset(chanout, 0, sizeof(int) * 18);
+        advance_lfo();
 
-            // register set #1
-            // extended 4op ch#0 part 1 or 2op ch#0
-            channels[0].chan_calc(LFO_AM);
-            if (channels[0].extended) {
-                // extended 4op ch#0 part 2
-                channels[3].chan_calc_ext(LFO_AM);
-            } else {
-                // standard 2op ch#3
-                channels[3].chan_calc(LFO_AM);
-            }
+        // clear channel outputs
+        memset(chanout, 0, sizeof(int) * 18);
 
-            // extended 4op ch#1 part 1 or 2op ch#1
-            channels[1].chan_calc(LFO_AM);
-            if (channels[1].extended) {
-                // extended 4op ch#1 part 2
-                channels[4].chan_calc_ext(LFO_AM);
-            } else {
-                // standard 2op ch#4
-                channels[4].chan_calc(LFO_AM);
-            }
-
-            // extended 4op ch#2 part 1 or 2op ch#2
-            channels[2].chan_calc(LFO_AM);
-            if (channels[2].extended) {
-                // extended 4op ch#2 part 2
-                channels[5].chan_calc_ext(LFO_AM);
-            } else {
-                // standard 2op ch#5
-                channels[5].chan_calc(LFO_AM);
-            }
-
-            if (!rhythmEnabled) {
-                channels[6].chan_calc(LFO_AM);
-                channels[7].chan_calc(LFO_AM);
-                channels[8].chan_calc(LFO_AM);
-            } else {
-                // Rhythm part
-                chan_calc_rhythm(noise_rng & 1);
-            }
-
-            // register set #2
-            channels[9].chan_calc(LFO_AM);
-            if (channels[9].extended) {
-                channels[12].chan_calc_ext(LFO_AM);
-            } else {
-                channels[12].chan_calc(LFO_AM);
-            }
-
-            channels[10].chan_calc(LFO_AM);
-            if (channels[10].extended) {
-                channels[13].chan_calc_ext(LFO_AM);
-            } else {
-                channels[13].chan_calc(LFO_AM);
-            }
-
-            channels[11].chan_calc(LFO_AM);
-            if (channels[11].extended) {
-                channels[14].chan_calc_ext(LFO_AM);
-            } else {
-                channels[14].chan_calc(LFO_AM);
-            }
-
-            // channels 15,16,17 are fixed 2-operator channels only
-            channels[15].chan_calc(LFO_AM);
-            channels[16].chan_calc(LFO_AM);
-            channels[17].chan_calc(LFO_AM);
-
-            for (int i = 0; i < 18; i++) {
-                a += chanout[i] & pan[4 * i + 0];
-                b += chanout[i] & pan[4 * i + 1];
-                c += chanout[i] & pan[4 * i + 2];
-                d += chanout[i] & pan[4 * i + 3];
-            }
-
-            advance();
+        // register set #1
+        // extended 4op ch#0 part 1 or 2op ch#0
+        channels[0].chan_calc(LFO_AM);
+        if (channels[0].extended) {
+            // extended 4op ch#0 part 2
+            channels[3].chan_calc_ext(LFO_AM);
+        } else {
+            // standard 2op ch#3
+            channels[3].chan_calc(LFO_AM);
         }
-        *(buf++) = (a << 3) / oplOversampling;
-        *(buf++) = (b << 3) / oplOversampling;
+
+        // extended 4op ch#1 part 1 or 2op ch#1
+        channels[1].chan_calc(LFO_AM);
+        if (channels[1].extended) {
+            // extended 4op ch#1 part 2
+            channels[4].chan_calc_ext(LFO_AM);
+        } else {
+            // standard 2op ch#4
+            channels[4].chan_calc(LFO_AM);
+        }
+
+        // extended 4op ch#2 part 1 or 2op ch#2
+        channels[2].chan_calc(LFO_AM);
+        if (channels[2].extended) {
+            // extended 4op ch#2 part 2
+            channels[5].chan_calc_ext(LFO_AM);
+        } else {
+            // standard 2op ch#5
+            channels[5].chan_calc(LFO_AM);
+        }
+
+        if (!rhythmEnabled) {
+            channels[6].chan_calc(LFO_AM);
+            channels[7].chan_calc(LFO_AM);
+            channels[8].chan_calc(LFO_AM);
+        } else {
+            // Rhythm part
+            chan_calc_rhythm(noise_rng & 1);
+        }
+
+#if 0
+        // register set #2
+        channels[9].chan_calc(LFO_AM);
+        if (channels[9].extended) {
+            channels[12].chan_calc_ext(LFO_AM);
+        } else {
+            channels[12].chan_calc(LFO_AM);
+        }
+
+        channels[10].chan_calc(LFO_AM);
+        if (channels[10].extended) {
+            channels[13].chan_calc_ext(LFO_AM);
+        } else {
+            channels[13].chan_calc(LFO_AM);
+        }
+
+        channels[11].chan_calc(LFO_AM);
+        if (channels[11].extended) {
+            channels[14].chan_calc_ext(LFO_AM);
+        } else {
+            channels[14].chan_calc(LFO_AM);
+        }
+
+        // channels 15,16,17 are fixed 2-operator channels only
+        channels[15].chan_calc(LFO_AM);
+        channels[16].chan_calc(LFO_AM);
+        channels[17].chan_calc(LFO_AM);
+#endif
+
+        for (int i = 0; i < 18; i++) {
+            a += chanout[i] & pan[4 * i + 0];
+            b += chanout[i] & pan[4 * i + 1];
+        }
+
+        advance();
+
+        *(buf++) = (a << 3);
+        *(buf++) = (b << 3);
     }
 
     checkMute();

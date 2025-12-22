@@ -80,7 +80,7 @@ static Int32* moonsoundSync(void* ref, Int32 *buffer, UInt32 count)
 {
     Moonsound* moonsound = (Moonsound*)ref;
 
-    memset(buffer, 0, sizeof(Int32) * count);
+    memset(buffer, 0, sizeof(Int32) * count * 2);
 
     int *buffer1 = moonsound->ymf262->updateBuffer((int*)buffer, count);
 
@@ -140,11 +140,10 @@ Moonsound* moonsoundCreate(Mixer* mixer, void* romData, int romSize, int sramSiz
     moonsound->handle = mixerRegisterChannel(mixer, MIXER_CHANNEL_MOONSOUND, 1, moonsoundSync, moonsound);
 
     moonsound->ymf262 = new YMF262(0, moonsound);
-    moonsound->ymf262->setSampleRate(AUDIO_SAMPLERATE, boardGetMoonsoundOversampling);
+    moonsound->ymf262->setSampleRate(AUDIO_SAMPLERATE, 1);
 	moonsound->ymf262->setVolume(32767 * 9 / 10);
 
     moonsound->ymf278 = new YMF278(0, sramSize, romData, romSize);
-    moonsound->ymf278->setSampleRate(AUDIO_SAMPLERATE, boardGetMoonsoundOversampling);
     moonsound->ymf278->setVolume(32767 * 9 / 10);
 
     ioPortRegister(0x7e, NULL                           , (IoPortWrite)moonsoundWriteYMF278, moonsound);

@@ -332,7 +332,7 @@ static IRAM_ATTR void isr_handler(void* arg)
     xSemaphoreGive(fpga_handle->interrupt_sem);
 }
 
-esp_err_t spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_t addr, uint8_t data)
+esp_err_t IRAM_ATTR spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_t addr, uint8_t data)
 {
     esp_err_t ret;
     xSemaphoreTake(ctx->spi_sem, portMAX_DELAY);
@@ -357,7 +357,7 @@ esp_err_t spi_fast_fpga_write(fpga_context_t* ctx, uint8_t cmd, uint8_t addr, ui
     return ret;
 }
 
-esp_err_t spi_fpga_read(fpga_context_t* ctx, uint32_t* out_data)
+esp_err_t IRAM_ATTR spi_fpga_read(fpga_context_t* ctx, uint32_t* out_data)
 {
     xSemaphoreTake(ctx->spi_sem, portMAX_DELAY);
 
@@ -373,7 +373,7 @@ esp_err_t spi_fpga_read(fpga_context_t* ctx, uint32_t* out_data)
     return ESP_OK;
 }
 
-static void fpga_handle_communication(void *args)
+static void IRAM_ATTR fpga_handle_communication(void *args)
 {
     fpga_handle_t ctx = (fpga_handle_t)args;
 
