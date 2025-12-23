@@ -308,7 +308,6 @@ void IRAM_ATTR YMF278::advance()
                 break;
             }
             op.env_vol += (~op.env_vol * eg_inc[op.AR_select + ((eg_cnt >> op.AR_shift) & 7)]) >> 3;
-            //op.env_vol -= eg_inc[op.AR_select + ((eg_cnt >> op.AR_shift) & 7)];
             if (op.env_vol <= MIN_ATT_INDEX) {
                 op.env_vol = MIN_ATT_INDEX;
                 if (op.DL == 0) {

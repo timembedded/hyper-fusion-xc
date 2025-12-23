@@ -396,7 +396,7 @@ static int* chanOut;
 YMF262Slot::YMF262Slot()
 {
     ar = dr = rr = KSR = ksl = ksr = mul = 0;
-    Cnt = Incr = FB = op1_out[0] = op1_out[1] = CON = 0;
+    Cnt = IncrBase = Incr = FB = op1_out[0] = op1_out[1] = CON = 0;
     connect = 0;
     eg_type = state = TL = TLL = volume = sl = 0;
     eg_m_ar = eg_sh_ar = eg_sel_ar = eg_m_dr = eg_sh_dr = 0;
@@ -442,6 +442,10 @@ void IRAM_ATTR YMF262::advance()
         for (int i = 0; i < 18 * 2; i++) {
             YMF262Channel &ch = channels[i / 2];
             YMF262Slot &op = ch.slots[i & 1];
+
+            // Phase Generator
+            op.Cnt += op.Incr;
+
             // Envelope Generator
             switch(op.state) {
             case EG_ATT:    // attack phase
@@ -474,13 +478,11 @@ void IRAM_ATTR YMF262::advance()
                 } else {
                     // percussive mode
                     // during sustain phase chip adds Release Rate (in percussive mode)
-                    if (!(eg_cnt & op.eg_m_rr)) {
+                    if (op.volume != MAX_ATT_INDEX && !(eg_cnt & op.eg_m_rr)) {
                         op.volume += eg_inc[op.eg_sel_rr + ((eg_cnt>>op.eg_sh_rr) & 7)];
                         if (op.volume >= MAX_ATT_INDEX) {
                             op.volume = MAX_ATT_INDEX;
                         }
-                    } else {
-                        // do nothing in sustain phase
                     }
                 }
                 break;
@@ -501,33 +503,6 @@ void IRAM_ATTR YMF262::advance()
         }
     }
 
-    int i;
-    for (i = 0; i < 18 * 2; i++) {
-        YMF262Channel &ch = channels[i / 2];
-        YMF262Slot &op = ch.slots[i & 1];
-
-        // Phase Generator
-        if (op.vib) {
-            uint8_t block;
-            unsigned int block_fnum = ch.block_fnum;
-            unsigned int fnum_lfo   = (block_fnum & 0x0380) >> 7;
-            signed int lfo_fn_table_index_offset = lfo_pm_table[LFO_PM + 16 * fnum_lfo];
-
-            if (lfo_fn_table_index_offset) {
-                // LFO phase modulation active
-                block_fnum += lfo_fn_table_index_offset;
-                block = (block_fnum & 0x1c00) >> 10;
-                op.Cnt += (fn_tab[block_fnum & 0x03ff] >> (7 - block)) * op.mul;
-            } else {
-                // LFO phase modulation  = zero
-                op.Cnt += op.Incr;
-            }
-        } else {
-            // LFO phase modulation disabled for this operator
-            op.Cnt += op.Incr;
-        }
-    }
-
     // The Noise Generator of the YM3812 is 23-bit shift register.
     // Period is equal to 2^23-2 samples.
     // Register works at sampling frequency of the chip, so output
@@ -538,7 +513,7 @@ void IRAM_ATTR YMF262::advance()
     //
     // Simply use bit 22 as the noise output.
     noise_p += noise_f;
-    i = (noise_p >> FREQ_SH) & 0x1f;        // number of events (shifts of the shift register)
+    int i = (noise_p >> FREQ_SH) & 0x1f;        // number of events (shifts of the shift register)
     noise_p &= FREQ_MASK;
     while (i--) {
         // unsigned j = ( (noise_rng) ^ (noise_rng>>14) ^ (noise_rng>>15) ^ (noise_rng>>22) ) & 1;
@@ -992,7 +967,7 @@ void YMF262Slot::FM_KEYOFF(uint8_t key_clr)
 void YMF262Channel::CALC_FCSLOT(YMF262Slot &slot)
 {
     // (frequency) phase increment counter
-    slot.Incr = fc * slot.mul;
+    slot.IncrBase = fc * slot.mul;
     int ksr = kcode >> slot.KSR;
 
     if (slot.ksr != ksr) {
@@ -1072,6 +1047,7 @@ void IRAM_ATTR YMF262::set_mul(uint8_t sl, uint8_t v)
         // in OPL2 mode
         ch.CALC_FCSLOT(slot);
     }
+    set_lfo(ch);
 }
 
 // set ksl & tl
@@ -1169,13 +1145,28 @@ void IRAM_ATTR YMF262::set_sl_rr(uint8_t sl, uint8_t v)
     slot.eg_sel_rr = eg_rate_select[slot.rr + slot.ksr];
 }
 
-void IRAM_ATTR YMF262::update_channels(YMF262Channel &ch)
+void IRAM_ATTR YMF262::set_lfo(YMF262Channel &ch)
 {
-    // update channel passed as a parameter and a channel at CH+=3;
-    if (ch.extended) {
-        // we've just switched to combined 4 operator mode
-    } else {
-        // we've just switched to normal 2 operator mode
+    unsigned int fnum_lfo = (ch.block_fnum & 0x0380) >> 7;
+    int lfo_fn_table_index_offset = lfo_pm_table[LFO_PM + 16 * fnum_lfo];
+    if (lfo_fn_table_index_offset) {
+        uint8_t block = ((ch.block_fnum + lfo_fn_table_index_offset) & 0x1c00) >> 10;
+        for (int i = 0; i < 2; i++) {
+            YMF262Slot &op = ch.slots[i & 1];
+            if (op.vib) {
+                // LFO phase modulation active
+                op.Incr = (fn_tab[ch.block_fnum & 0x03ff] >> (7 - block)) * op.mul;
+            } else {
+                // LFO phase modulation inactive
+                op.Incr = op.IncrBase;
+            }
+        }
+    }else{
+        // LFO phase modulation inactive
+        for (int i = 0; i < 2; i++) {
+            YMF262Slot &op = ch.slots[i & 1];
+            op.Incr = op.IncrBase;
+        }
     }
 }
 
@@ -1210,41 +1201,17 @@ void IRAM_ATTR YMF262::writeRegForce(int r, uint8_t v)
 
         case 0x104: { // 6 channels enable
             YMF262Channel &ch0 = channels[0];
-            uint8_t prev = ch0.extended;
             ch0.extended = (v >> 0) & 1;
-            if (prev != ch0.extended) {
-                update_channels(ch0);
-            }
             YMF262Channel &ch1 = channels[1];
-            prev = ch1.extended;
             ch1.extended = (v >> 1) & 1;
-            if (prev != ch1.extended) {
-                update_channels(ch1);
-            }
             YMF262Channel &ch2 = channels[2];
-            prev = ch2.extended;
             ch2.extended = (v >> 2) & 1;
-            if (prev != ch2.extended) {
-                update_channels(ch2);
-            }
             YMF262Channel &ch9 = channels[9];
-            prev = ch9.extended;
             ch9.extended = (v >> 3) & 1;
-            if (prev != ch9.extended) {
-                update_channels(ch9);
-            }
             YMF262Channel &ch10 = channels[10];
-            prev = ch10.extended;
             ch10.extended = (v >> 4) & 1;
-            if (prev != ch10.extended) {
-                update_channels(ch10);
-            }
             YMF262Channel &ch11 = channels[11];
-            prev = ch11.extended;
             ch11.extended = (v >> 5) & 1;
-            if (prev != ch11.extended) {
-                update_channels(ch11);
-            }
             return;
         }
         case 0x105: // OPL3 extensions enable register
@@ -1565,6 +1532,7 @@ void IRAM_ATTR YMF262::writeRegForce(int r, uint8_t v)
                 ch.CALC_FCSLOT(ch.slots[SLOT1]);
                 ch.CALC_FCSLOT(ch.slots[SLOT2]);
             }
+            set_lfo(ch);
         }
         break;
     }
@@ -1862,7 +1830,6 @@ int* IRAM_ATTR YMF262::updateBuffer(int *buffer, int length)
             chan_calc_rhythm(noise_rng & 1);
         }
 
-#if 0
         // register set #2
         channels[9].chan_calc(LFO_AM);
         if (channels[9].extended) {
@@ -1889,7 +1856,6 @@ int* IRAM_ATTR YMF262::updateBuffer(int *buffer, int length)
         channels[15].chan_calc(LFO_AM);
         channels[16].chan_calc(LFO_AM);
         channels[17].chan_calc(LFO_AM);
-#endif
 
         for (int i = 0; i < 18; i++) {
             a += chanout[i] & pan[4 * i + 0];

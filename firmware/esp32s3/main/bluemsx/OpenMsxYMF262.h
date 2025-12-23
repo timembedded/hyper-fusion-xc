@@ -54,8 +54,10 @@ class YMF262Slot
         uint8_t mul;    // multiple: mul_tab[ML]
 
         // Phase Generator 
-        unsigned int Cnt;   // frequency counter
-        unsigned int Incr;  // frequency counter step
+        unsigned int Cnt;       // frequency counter
+        unsigned int IncrBase;  // frequency counter step without LFO
+        unsigned int Incr;      // frequency counter step with LFO applied if enabled
+
         uint8_t FB; // feedback shift value
         int op1_out[2]; // slot1 output for feedback
         uint8_t CON;    // connection (algorithm) type
@@ -154,7 +156,7 @@ class YMF262 : public SoundDevice
         void set_ksl_tl(uint8_t sl, uint8_t v);
         void set_ar_dr(uint8_t sl, uint8_t v);
         void set_sl_rr(uint8_t sl, uint8_t v);
-        void update_channels(YMF262Channel &ch);
+        void set_lfo(YMF262Channel &ch);
         void checkMute();
         bool checkMuteHelper();
 
