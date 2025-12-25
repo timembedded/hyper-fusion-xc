@@ -40,11 +40,9 @@
 struct MsxAudio {
     Mixer* mixer;
     Int32  handle;
-
     Y8950* y8950;
-    Int32  buffer[AUDIO_MONO_BUFFER_SIZE];
     UInt8  registerLatch;
- };
+};
 
 
 extern "C" Int32* msxaudioSync(void* ref, Int32 *buffer, UInt32 count) 
@@ -97,7 +95,7 @@ extern "C" MsxAudioHndl msxaudioCreate(Mixer* mixer)
     msxaudio->mixer = mixer;
     msxaudio->registerLatch = 0;
 
-    msxaudio->handle = mixerRegisterChannel(mixer, MIXER_CHANNEL_MSXAUDIO, 0, msxaudioSync, msxaudio);
+    msxaudio->handle = mixerRegisterChannel(mixer, 1, MIXER_CHANNEL_MSXAUDIO, 0, msxaudioSync, msxaudio);
 
     msxaudio->y8950 = new Y8950(256*1024);
     msxaudio->y8950->setSampleRate(AUDIO_SAMPLERATE, boardGetY8950Oversampling);

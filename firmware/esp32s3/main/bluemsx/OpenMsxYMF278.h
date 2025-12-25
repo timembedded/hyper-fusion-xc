@@ -126,7 +126,7 @@ static const int MASTER_CLK = 33868800;
 class YMF278 : public SoundDevice
 {
     public:
-        YMF278(int16_t volume, int ramSize, void* romData, int romSize);
+        YMF278(int ramSize, void* romData, int romSize);
         virtual ~YMF278();
         void reset();
         void writeRegOPL4(uint8_t reg, uint8_t data);
@@ -154,7 +154,6 @@ class YMF278 : public SoundDevice
         int ramSize;
         
         uint16_t eg_cnt;    // global envelope generator counter
-        //uint32_t eg_timer;  // global envelope generator counter
         
         char wavetblhdr;
         char memmode;

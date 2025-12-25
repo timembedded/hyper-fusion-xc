@@ -128,6 +128,7 @@ void audiodev_stop(audiodev_handle_t audiodev)
 {
     // Stop mixer thread
     xSemaphoreTake(audiodev->mixer_sem, portMAX_DELAY);
+    mixerSetEnable(audiodev->mixer, false);
 
     // Remove timers
     timer_destroy(audiodev->timer_mixer);
@@ -170,7 +171,7 @@ void audiodev_start(audiodev_handle_t audiodev)
     audiodev->timer_mixer = timer_create(AUDIO_SAMPLERATE);
 
     // Create mixer
-    audiodev->mixer = mixerCreate(mixer_get_samples_callback, audiodev);
+    audiodev->mixer = mixerCreate(mixer_get_samples_callback, audiodev, 128);
 
     // Create sound chips
     audiodev->psg = ay8910Create(audiodev->mixer, AY8910_MSX, PSGTYPE_AY8910);
@@ -179,23 +180,36 @@ void audiodev_start(audiodev_handle_t audiodev)
     audiodev->moonsound = moonsoundCreate(audiodev->mixer, (uint8_t*)moonsound_rom_start, ((uint8_t*)moonsound_rom_end - (uint8_t*)moonsound_rom_start), 1024);
 
     // Configure mixer
-    mixerSetWriteCallback(audiodev->mixer, mixer_write_samples_callback, audiodev, 128);
+    mixerSetWriteCallback(audiodev->mixer, mixer_write_samples_callback, audiodev);
     mixerSetMasterVolume(audiodev->mixer, 100);
     mixerEnableMaster(audiodev->mixer, 1);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_PSG, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO, 100);
-    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MOONSOUND, 100);
+    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_YMF262, 100);
+    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_YMF278, 100);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_PSG, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC, 0);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO, 100);
-    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MOONSOUND, 50);
+    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_YMF262, 50);
+    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_YMF278, 50);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_PSG, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO, 1);
-    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MOONSOUND, 1);
+    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_YMF262, 1);
+    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_YMF278, 1);
 
-    mixerSetEnable(audiodev->mixer, 1);
+    // Pre-fill I2S buffer
+    Int16 buffer[128];
+    int written = 0;
+    memset(buffer, 0, sizeof(buffer));
+    for(int i = 0; i < 8; i++) {
+        written += mixer_write_samples_callback(audiodev, buffer, sizeof(buffer) / sizeof(Int16));
+    }
+    ESP_LOGI(TAG, "Pre-filled %d samples", written);
+
+    // Enable mixer
+    mixerSetEnable(audiodev->mixer, true);
 
     // Reset timers
     timer_reset(audiodev->timer_mixer);

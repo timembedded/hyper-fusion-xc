@@ -916,13 +916,11 @@ void YMF262::setSampleRate(int sampleRate, int Oversampling)
     const int CLCK_FREQ = 14318180;
     double freqbase  = ((double)CLCK_FREQ / (8.0 * 36)) / (double)sampleRate;
 
-    printf("YMF262: set sample rate %dHz, freqbase=%f\n", sampleRate, freqbase);
-
     // make fnumber -> increment counter table
     for (int i = 0; i < 1024; i++) {
         // opn phase increment counter = 20bit
         // -10 because chip works with 10.10 fixed point, while we use 16.16
-        fn_tab[i] = (unsigned)( (double)i * 64 * freqbase * (1<<(FREQ_SH - 10)));
+        fn_tab[i] = (unsigned)( (double)i * 64 * (1<<(FREQ_SH - 10)));
     }
 
     // Amplitude modulation: 27 output levels (triangle waveform);
@@ -1731,7 +1729,7 @@ void YMF262::reset()
     setInternalMute(true);
 }
 
-YMF262::YMF262(short volume, void* ref)
+YMF262::YMF262()
 {
     chanOut = chanout;
 

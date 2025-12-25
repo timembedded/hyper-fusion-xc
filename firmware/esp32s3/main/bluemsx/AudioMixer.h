@@ -43,12 +43,9 @@ typedef enum {
     MIXER_CHANNEL_SCC,
     MIXER_CHANNEL_MSXMUSIC,
     MIXER_CHANNEL_MSXAUDIO,
-    MIXER_CHANNEL_MOONSOUND,
-    MIXER_CHANNEL_YAMAHA_SFG,
+    MIXER_CHANNEL_YMF262,
+    MIXER_CHANNEL_YMF278,
     MIXER_CHANNEL_KEYBOARD,
-    MIXER_CHANNEL_PCM,
-    MIXER_CHANNEL_IO,
-    MIXER_CHANNEL_MIDI,
     MIXER_CHANNEL_TYPE_COUNT
 } MixerAudioType;
 
@@ -68,30 +65,28 @@ extern "C" {
 #endif
 
 /* Constructor and destructor */
-Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref);
+Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref, int fragmentSize);
 void mixerDestroy(Mixer* mixer);
-
-Mixer* mixerGetGlobalMixer();
 
 Int32 mixerGetMasterVolume(Mixer* mixer, int leftRight);
 void mixerSetMasterVolume(Mixer* mixer, Int32 volume);
-void mixerEnableMaster(Mixer* mixer, Int32 enable);
+void mixerEnableMaster(Mixer* mixer, bool enable);
 
 Int32 mixerGetChannelTypeVolume(Mixer* mixer, Int32 channelType, int leftRight);
 void mixerSetChannelTypeVolume(Mixer* mixer, Int32 channelType, Int32 volume);
 void mixerSetChannelTypePan(Mixer* mixer, Int32 channelType, Int32 pan);
-void mixerEnableChannelType(Mixer* mixer, Int32 channelType, Int32 enable);
+void mixerEnableChannelType(Mixer* mixer, Int32 channelType, bool enable);
 
 /* Write callback registration for audio drivers */
-void mixerSetWriteCallback(Mixer* mixer, MixerWriteCallback callback, void*, int);
+void mixerSetWriteCallback(Mixer* mixer, MixerWriteCallback callback, void*);
 
 /* Internal interface methods */
 void mixerReset(Mixer* mixer);
 void mixerSync(Mixer* mixer);
 
-Int32 mixerRegisterChannel(Mixer* mixer, Int32 audioType, Int32 stereo,
+Int32 mixerRegisterChannel(Mixer* mixer, int core, Int32 audioType, Int32 stereo,
                            MixerUpdateCallback callback, void*param);
-void mixerSetEnable(Mixer* mixer, int enable);
+void mixerSetEnable(Mixer* mixer, bool enable);
 void mixerUnregisterChannel(Mixer* mixer, Int32 handle);
 
 #ifdef __cplusplus

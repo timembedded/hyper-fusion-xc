@@ -129,7 +129,7 @@ static const int R04_IRQ_RESET    = 0x80;   // IRQ RESET
 class YMF262 : public SoundDevice
 {
     public:
-        YMF262(short volume, void* ref);
+        YMF262();
         virtual ~YMF262();
         
         virtual void reset();

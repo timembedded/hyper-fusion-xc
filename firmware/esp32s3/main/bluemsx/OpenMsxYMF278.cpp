@@ -148,7 +148,7 @@ const static DRAM_ATTR uint8_t dmp_shift = eg_rate_shift[dmp_rate];
 const static DRAM_ATTR uint16_t dmp_mask = (1 << dmp_shift) - 1;
 const static DRAM_ATTR uint8_t dmp_select = eg_rate_select[dmp_rate];
 
-static DRAM_ATTR uint8_t* lfo_lookup;
+static uint8_t* lfo_lookup = NULL;
 
 YMF278Slot::YMF278Slot()
 {
@@ -168,7 +168,9 @@ void YMF278Slot::reset()
     lfo_cnt = lfo_step = lfo_idx = 0;
     lfo_max = lfo_period[0];
 
-    lfo_lookup = (uint8_t*)malloc(1024);
+    if (lfo_lookup == NULL) {
+        lfo_lookup = (uint8_t*)malloc(1024);
+    }
     for(int i = 0; i < 1024; i++) {
         if (i < 256) {
             lfo_lookup[i] = i;
@@ -498,8 +500,8 @@ int* IRAM_ATTR YMF278::updateBuffer(int *buffer, int length)
             sl.sample = getSample(sl);
         }
         advance();
-        *buf++ += left;
-        *buf++ += right;
+        *buf++ = left;
+        *buf++ = right;
     }
     return buffer;
 }
@@ -748,7 +750,7 @@ uint8_t IRAM_ATTR YMF278::readRegOPL4(uint8_t reg)
     return result;
 }
 
-YMF278::YMF278(int16_t volume, int ramSize, void* romData, int romSize)
+YMF278::YMF278(int ramSize, void* romData, int romSize)
 {
     memadr = 0; // avoid UMR
     rom = (uint8_t*)romData;

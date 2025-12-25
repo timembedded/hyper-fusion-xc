@@ -33,11 +33,12 @@
 #include <math.h>
 #include <string.h>
 
-#include "freertos/FreeRTOS.h"
-#include "esp_log.h"
+#include <freertos/FreeRTOS.h>
+#include <esp_log.h>
 
 static const char TAG[] = "AudioMixer";
 
+#define USE_DUAL_CORE     1   // 0 = single-core, 1 = dual-core
 #define BITSPERSAMPLE     16
 
 #define str2ul(s) ((UInt32)s[0]<<0|(UInt32)s[1]<<8|(UInt32)s[2]<<16|(UInt32)s[3]<<24)
@@ -66,18 +67,18 @@ typedef struct {
 typedef struct {
     Int32 volume;
     Int32 pan;
-    Int32 enable;
+    bool  enable;
 } AudioTypeInfo;
 
 typedef struct {
     Int32 handle;
-    MixerUpdateCallback updateCallback;
+    MixerUpdateCallback updateCallback[2];
     void* ref;
     MixerAudioType type;
     // User config
     Int32 volume;
     Int32 pan;
-    Int32 enable;
+    bool  enable;
     Int32 stereo;
     // Internal config
     Int32 volumeLeft;
@@ -89,6 +90,17 @@ typedef struct {
     Int32 volCntRight;
 } MixerChannel;
 
+#if USE_DUAL_CORE
+struct Mixer;
+typedef struct {
+    struct Mixer* mixer;
+    int core;
+    SemaphoreHandle_t semStart;
+    SemaphoreHandle_t semDone;
+    Int32   genBuffer[AUDIO_STEREO_BUFFER_SIZE];
+} MixerTaskData;
+#endif
+
 struct Mixer
 {
     GetSamplesToGenerateCallback samplesCallback;
@@ -99,7 +111,9 @@ struct Mixer
     UInt32 begin;
     UInt32 index;
     UInt32 volIndex;
-    Int32   genBuffer[AUDIO_STEREO_BUFFER_SIZE];
+#if !USE_DUAL_CORE
+    Int32   genBuffer[2][AUDIO_STEREO_BUFFER_SIZE];
+#endif
     Int32   mixBuffer[AUDIO_STEREO_BUFFER_SIZE];
     Int16   buffer[AUDIO_STEREO_BUFFER_SIZE];
     AudioTypeInfo audioTypeInfo[MIXER_CHANNEL_TYPE_COUNT];
@@ -108,14 +122,19 @@ struct Mixer
     Int32   handleCount;
     UInt32  oldTick;
     double  masterVolume;
-    Int32   masterEnable;
+    bool    masterEnable;
     Int32   volIntLeft;
     Int32   volIntRight;
     Int32   volCntLeft;
     Int32   volCntRight;
     FILE*   file;
-    int     enable;
+    bool    enable;
     SemaphoreHandle_t sync_sem;
+#if USE_DUAL_CORE
+    MixerTaskData taskData[2];
+    volatile UInt32  samplesToMix;
+    SemaphoreHandle_t semMix;
+#endif
 };
 
 
@@ -152,11 +171,11 @@ void mixerSetMasterVolume(Mixer* mixer, Int32 volume)
     }
 }
 
-void mixerEnableMaster(Mixer* mixer, Int32 enable)
+void mixerEnableMaster(Mixer* mixer, bool enable)
 {
     int i;
 
-    mixer->masterEnable = enable ? 1 : 0;
+    mixer->masterEnable = enable;
 
     for (i = 0; i < MIXER_CHANNEL_TYPE_COUNT; i++) {
         mixerRecalculateType(mixer, i);
@@ -175,7 +194,7 @@ void mixerSetChannelTypePan(Mixer* mixer, Int32 type, Int32 pan)
     mixerRecalculateType(mixer, type);
 }
 
-void mixerEnableChannelType(Mixer* mixer, Int32 type, Int32 enable)
+void mixerEnableChannelType(Mixer* mixer, Int32 type, bool enable)
 {
     mixer->audioTypeInfo[type].enable = enable;
     mixerRecalculateType(mixer, type);
@@ -210,8 +229,8 @@ static void recalculateChannelVolume(Mixer* mixer, MixerChannel* channel)
     double panLeft       = pow(10.0, (MIN(100 - channel->pan, 50) - 50) / 30.0) - pow(10.0, -50 / 30.0);
     double panRight      = pow(10.0, (MIN(channel->pan, 50) - 50) / 30.0) - pow(10.0, -50 / 30.0);
 
-    channel->volumeLeft  = channel->enable * mixer->masterEnable * (Int32)(1024 * mixer->masterVolume * volume * panLeft);
-    channel->volumeRight = channel->enable * mixer->masterEnable * (Int32)(1024 * mixer->masterVolume * volume * panRight);
+    channel->volumeLeft  = (channel->enable && mixer->masterEnable)? (Int32)(1024 * mixer->masterVolume * volume * panLeft) : 0;
+    channel->volumeRight = (channel->enable && mixer->masterEnable)? (Int32)(1024 * mixer->masterVolume * volume * panRight) : 0;
 }
 
 static void updateVolumes(Mixer* mixer)
@@ -242,14 +261,7 @@ static void updateVolumes(Mixer* mixer)
     }
 }
 
-static Mixer* globalMixer = NULL;
-
-Mixer* mixerGetGlobalMixer()
-{
-    return globalMixer;
-}
-
-Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref)
+Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref, int fragmentSize)
 {
     Mixer* mixer = (Mixer*)calloc(1, sizeof(Mixer));
 
@@ -259,33 +271,46 @@ Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref)
 
     mixer->samplesCallback = callback;
     mixer->samplesRef = ref;
-    mixer->fragmentSize = 512;
-    mixer->enable = 1;
-    if (globalMixer == NULL) globalMixer = mixer;
+    mixer->fragmentSize = fragmentSize;
+    mixer->enable = false;
 
-    return mixer;
+#if USE_DUAL_CORE
+    mixer->samplesToMix = 0;
+    mixer->semMix = xSemaphoreCreateBinary();
+    xSemaphoreGive(mixer->semMix);
+
+    for (int i = 0; i < 2; i++) {
+        mixer->taskData[i].mixer = mixer;
+        mixer->taskData[i].core = i;
+        mixer->taskData[i].semStart = xSemaphoreCreateBinary(); // is taken by default
+        mixer->taskData[i].semDone = xSemaphoreCreateBinary();
+    }
+#endif
+
+return mixer;
 }
 
 void mixerDestroy(Mixer* mixer)
 {
+    mixerSetEnable(mixer, false);
     vSemaphoreDelete(mixer->sync_sem);
-    globalMixer = NULL;
+#if USE_DUAL_CORE
+    vSemaphoreDelete(mixer->semMix);
+    for (int i = 0; i < 2; i++) {
+        vSemaphoreDelete(mixer->taskData[i].semStart);
+        vSemaphoreDelete(mixer->taskData[i].semDone);
+    }
+#endif
     free(mixer);
 }
 
-
-void mixerSetWriteCallback(Mixer* mixer, MixerWriteCallback callback, void* ref, int fragmentSize)
+void mixerSetWriteCallback(Mixer* mixer, MixerWriteCallback callback, void* ref)
 {
-    mixer->fragmentSize = fragmentSize;
     mixer->writeCallback = callback;
     mixer->writeRef = ref;
-
-    if (mixer->fragmentSize <= 0) {
-        mixer->fragmentSize = 512;
-    }
 }
 
-Int32 mixerRegisterChannel(Mixer* mixer, Int32 audioType, Int32 stereo, MixerUpdateCallback callback, void* ref)
+Int32 mixerRegisterChannel(Mixer* mixer, int core, Int32 audioType, Int32 stereo, MixerUpdateCallback callback, void* ref)
 {
     MixerChannel*  channel = mixer->channels + mixer->channelCount;
     AudioTypeInfo* type    = mixer->audioTypeInfo + audioType;
@@ -296,7 +321,7 @@ Int32 mixerRegisterChannel(Mixer* mixer, Int32 audioType, Int32 stereo, MixerUpd
 
     mixer->channelCount++;
 
-    channel->updateCallback = callback;
+    channel->updateCallback[core] = callback;
     channel->ref            = ref;
     channel->type           = audioType;
     channel->stereo         = stereo;
@@ -347,19 +372,88 @@ void mixerReset(Mixer* mixer)
     mixer->index = 0;
 }
 
+#if USE_DUAL_CORE
+void IRAM_ATTR MixerTask(void *args)
+{
+    MixerTaskData *task = (MixerTaskData*)args;
+    Mixer* mixer = task->mixer;
+    int core = task->core;
+
+    ESP_LOGI(TAG, "Audio mixer task started on core %d", core);
+
+    for(;;) {
+        xSemaphoreTake(task->semStart, portMAX_DELAY);
+        UInt32 count = mixer->samplesToMix;
+        if (!mixer->enable) {
+            xSemaphoreGive(task->semDone);
+            ESP_LOGI(TAG, "Audio mixer task on core %d stopped", core);
+            break;
+        }
+        if (count == 0) {
+            ESP_LOGE(TAG, "Audio mixer got invalid count on core %d", core);
+            break;
+        }
+        //ESP_LOGI(TAG, "Mix%d: Processing %d samples", core, count);
+        for (int i = 0; i < mixer->channelCount; i++) {
+            if (mixer->channels[i].updateCallback[core] == NULL) {
+                continue;
+            }
+
+            Int32* gen = task->genBuffer;
+            Int32* mix = mixer->mixBuffer;
+
+            gen = mixer->channels[i].updateCallback[core](mixer->channels[i].ref, gen, count);
+            if (gen == NULL) {
+                continue;
+            }
+
+            xSemaphoreTake(mixer->semMix, portMAX_DELAY);
+
+            for(int sample = 0; sample < count; sample++) {
+                Int32 chanLeft;
+                Int32 chanRight;
+
+                if (mixer->channels[i].stereo) {
+                    chanLeft = mixer->channels[i].volumeLeft * *gen++;
+                    chanRight = mixer->channels[i].volumeRight * *gen++;
+                }
+                else {
+                    Int32 tmp = *gen++;
+                    chanLeft = mixer->channels[i].volumeLeft * tmp;
+                    chanRight = mixer->channels[i].volumeRight * tmp;
+                }
+
+                mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
+                mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
+
+                *mix++ += chanLeft;
+                *mix++ += chanRight;
+            }
+
+            xSemaphoreGive(mixer->semMix);
+        }
+        xSemaphoreGive(task->semDone);
+    }
+    vTaskDelete(NULL);
+}
+#endif
+
 void IRAM_ATTR mixerSync(Mixer* mixer)
 {
     xSemaphoreTake(mixer->sync_sem, portMAX_DELAY);
 
-    Int16* buffer = mixer->buffer;
-    int i;
-
     UInt32 count = mixer->samplesCallback(mixer->samplesRef);
-
-    if (count == 0 || count > AUDIO_MONO_BUFFER_SIZE) {
+    if (count == 0) {
         xSemaphoreGive(mixer->sync_sem);
         return;
     }
+    if (count > AUDIO_MONO_BUFFER_SIZE) {
+        ESP_LOGW(TAG, "Audio mixer overflow (%d)", count);
+        xSemaphoreGive(mixer->sync_sem);
+        return;
+    }
+
+    Int16* buffer = mixer->buffer;
 
     if (!mixer->enable) {
         while (count--) {
@@ -378,43 +472,68 @@ void IRAM_ATTR mixerSync(Mixer* mixer)
         return;
     }
     
-    memset(mixer->mixBuffer, 0, sizeof(Int32) * count * 2);
+    memset(mixer->mixBuffer, 0, sizeof(mixer->mixBuffer));
 
-    for (i = 0; i < mixer->channelCount; i++) {
-        if (mixer->channels[i].updateCallback == NULL) {
-            continue;
-        }
+    //ESP_LOGI(TAG, "Mixer: Mixing %d samples", count);
 
-        Int32* gen = mixer->genBuffer;
-        Int32* mix = mixer->mixBuffer;
+#if USE_DUAL_CORE
+    // Set samples to mix for tasks
+    mixer->samplesToMix = count;
 
-        gen = mixer->channels[i].updateCallback(mixer->channels[i].ref, gen, count);
-        if (gen == NULL) {
-            continue;
-        }
-
-        for(int sample = 0; sample < count; sample++) {
-            Int32 chanLeft;
-            Int32 chanRight;
-
-            if (mixer->channels[i].stereo) {
-                chanLeft = mixer->channels[i].volumeLeft * *gen++;
-                chanRight = mixer->channels[i].volumeRight * *gen++;
-            }
-            else {
-                Int32 tmp = *gen++;
-                chanLeft = mixer->channels[i].volumeLeft * tmp;
-                chanRight = mixer->channels[i].volumeRight * tmp;
+    // Start mixing tasks
+    for (int i = 0; i < 2; i++) {
+        xSemaphoreGive(mixer->taskData[i].semStart);
+    }
+    taskYIELD();
+    // Wait for mixing tasks to finish
+    for (int i = 0; i < 2; i++) {
+        xSemaphoreTake(mixer->taskData[i].semDone, portMAX_DELAY);
+    }
+#else
+    for(int core = 0; core < 2; core++) {
+        for (int i = 0; i < mixer->channelCount; i++) {
+            if (mixer->channels[i].updateCallback[core] == NULL) {
+                continue;
             }
 
-            mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
-            mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
+            Int32* gen = mixer->genBuffer[core];
+            Int32* mix = mixer->mixBuffer;
 
-            *mix++ += chanLeft;
-            *mix++ += chanRight;
+            gen = mixer->channels[i].updateCallback[core](mixer->channels[i].ref, gen, count);
+            if (gen == NULL) {
+                continue;
+            }
+
+            for(int sample = 0; sample < count; sample++) {
+                Int32 chanLeft;
+                Int32 chanRight;
+
+                if (mixer->channels[i].stereo) {
+                    chanLeft = mixer->channels[i].volumeLeft * *gen++;
+                    chanRight = mixer->channels[i].volumeRight * *gen++;
+                }
+                else {
+                    Int32 tmp = *gen++;
+                    chanLeft = mixer->channels[i].volumeLeft * tmp;
+                    chanRight = mixer->channels[i].volumeRight * tmp;
+                }
+
+                mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
+                mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
+
+                *mix++ += chanLeft;
+                *mix++ += chanRight;
+            }
         }
     }
-    
+#endif
+
+//ESP_LOGI(TAG, "Mixer: Mixing done");
+#if USE_DUAL_CORE
+    // Set to zero, will generate an error when tasks are used incorrectly
+    mixer->samplesToMix = 0;
+#endif
+
     Int32* mix = mixer->mixBuffer;
     while(count--) {
         Int32 left = *mix++;
@@ -480,7 +599,7 @@ void IRAM_ATTR mixerSync(Mixer* mixer)
         mixer->volCntLeft  = 0;
         mixer->volCntRight = 0;
 
-        for (i = 0; i < mixer->channelCount; i++) {
+        for (int i = 0; i < mixer->channelCount; i++) {
             Int32 newVolumeLeft  = (Int32)(mixer->channels[i].volCntLeft  / mixer->masterVolume / mixer->volIndex / 328);
             Int32 newVolumeRight = (Int32)(mixer->channels[i].volCntRight / mixer->masterVolume / mixer->volIndex / 328);
 
@@ -506,8 +625,26 @@ void IRAM_ATTR mixerSync(Mixer* mixer)
     xSemaphoreGive(mixer->sync_sem);
 }
 
-void mixerSetEnable(Mixer* mixer, int enable)
+void mixerSetEnable(Mixer* mixer, bool enable)
 {
+#if USE_DUAL_CORE
+    if (!mixer->enable && enable) {
+        // Start the audio tasks
+        mixer->enable = true;
+        xTaskCreatePinnedToCore(MixerTask, "audio_mixer_0", 4096, &mixer->taskData[0], 5, NULL, 0);
+        xTaskCreatePinnedToCore(MixerTask, "audio_mixer_1", 4096, &mixer->taskData[1], 5, NULL, 1);
+    }
+    if (mixer->enable && !enable) {
+        // Stop the audio tasks
+        mixer->enable = false;
+        for (int i = 0; i < 2; i++) {
+            xSemaphoreGive(mixer->taskData[i].semStart);
+        }
+        for (int i = 0; i < 2; i++) {
+            xSemaphoreTake(mixer->taskData[i].semDone, portMAX_DELAY);
+        }
+    }
+#else
     mixer->enable = enable;
-//    printf("AUDIO: %s\n", enable?"enabled":"disabled");
+#endif
 }
