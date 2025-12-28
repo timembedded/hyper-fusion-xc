@@ -1780,8 +1780,8 @@ int* IRAM_ATTR YMF262::updateBuffer(int *buffer, int length)
 
     int* buf = buffer;
     while (length--) {
-        int a = 0;
-        int b = 0;
+        int left = 0;
+        int right = 0;
 
         advance_lfo();
 
@@ -1856,14 +1856,14 @@ int* IRAM_ATTR YMF262::updateBuffer(int *buffer, int length)
         channels[17].chan_calc(LFO_AM);
 
         for (int i = 0; i < 18; i++) {
-            a += chanout[i] & pan[4 * i + 0];
-            b += chanout[i] & pan[4 * i + 1];
+            left += chanout[i] & pan[4 * i + 0];
+            right += chanout[i] & pan[4 * i + 1];
         }
 
         advance();
 
-        *(buf++) = (a << 3);
-        *(buf++) = (b << 3);
+        *buf++ = (left << 3);
+        *buf++ = (right << 3);
     }
 
     checkMute();

@@ -38,7 +38,6 @@
 
 static const char TAG[] = "AudioMixer";
 
-#define USE_DUAL_CORE     1   // 0 = single-core, 1 = dual-core
 #define BITSPERSAMPLE     16
 
 #define str2ul(s) ((UInt32)s[0]<<0|(UInt32)s[1]<<8|(UInt32)s[2]<<16|(UInt32)s[3]<<24)
@@ -90,7 +89,6 @@ typedef struct {
     Int32 volCntRight;
 } MixerChannel;
 
-#if USE_DUAL_CORE
 struct Mixer;
 typedef struct {
     struct Mixer* mixer;
@@ -99,7 +97,6 @@ typedef struct {
     SemaphoreHandle_t semDone;
     Int32   genBuffer[AUDIO_STEREO_BUFFER_SIZE];
 } MixerTaskData;
-#endif
 
 struct Mixer
 {
@@ -111,9 +108,6 @@ struct Mixer
     UInt32 begin;
     UInt32 index;
     UInt32 volIndex;
-#if !USE_DUAL_CORE
-    Int32   genBuffer[2][AUDIO_STEREO_BUFFER_SIZE];
-#endif
     Int32   mixBuffer[AUDIO_STEREO_BUFFER_SIZE];
     Int16   buffer[AUDIO_STEREO_BUFFER_SIZE];
     AudioTypeInfo audioTypeInfo[MIXER_CHANNEL_TYPE_COUNT];
@@ -130,11 +124,9 @@ struct Mixer
     FILE*   file;
     bool    enable;
     SemaphoreHandle_t sync_sem;
-#if USE_DUAL_CORE
     MixerTaskData taskData[2];
     volatile UInt32  samplesToMix;
     SemaphoreHandle_t semMix;
-#endif
 };
 
 
@@ -274,7 +266,6 @@ Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref, int fragmen
     mixer->fragmentSize = fragmentSize;
     mixer->enable = false;
 
-#if USE_DUAL_CORE
     mixer->samplesToMix = 0;
     mixer->semMix = xSemaphoreCreateBinary();
     xSemaphoreGive(mixer->semMix);
@@ -285,22 +276,19 @@ Mixer* mixerCreate(GetSamplesToGenerateCallback callback, void* ref, int fragmen
         mixer->taskData[i].semStart = xSemaphoreCreateBinary(); // is taken by default
         mixer->taskData[i].semDone = xSemaphoreCreateBinary();
     }
-#endif
 
-return mixer;
+    return mixer;
 }
 
 void mixerDestroy(Mixer* mixer)
 {
     mixerSetEnable(mixer, false);
     vSemaphoreDelete(mixer->sync_sem);
-#if USE_DUAL_CORE
     vSemaphoreDelete(mixer->semMix);
     for (int i = 0; i < 2; i++) {
         vSemaphoreDelete(mixer->taskData[i].semStart);
         vSemaphoreDelete(mixer->taskData[i].semDone);
     }
-#endif
     free(mixer);
 }
 
@@ -372,7 +360,6 @@ void mixerReset(Mixer* mixer)
     mixer->index = 0;
 }
 
-#if USE_DUAL_CORE
 void IRAM_ATTR MixerTask(void *args)
 {
     MixerTaskData *task = (MixerTaskData*)args;
@@ -436,7 +423,6 @@ void IRAM_ATTR MixerTask(void *args)
     }
     vTaskDelete(NULL);
 }
-#endif
 
 void IRAM_ATTR mixerSync(Mixer* mixer)
 {
@@ -474,9 +460,6 @@ void IRAM_ATTR mixerSync(Mixer* mixer)
     
     memset(mixer->mixBuffer, 0, sizeof(mixer->mixBuffer));
 
-    //ESP_LOGI(TAG, "Mixer: Mixing %d samples", count);
-
-#if USE_DUAL_CORE
     // Set samples to mix for tasks
     mixer->samplesToMix = count;
 
@@ -489,50 +472,9 @@ void IRAM_ATTR mixerSync(Mixer* mixer)
     for (int i = 0; i < 2; i++) {
         xSemaphoreTake(mixer->taskData[i].semDone, portMAX_DELAY);
     }
-#else
-    for(int core = 0; core < 2; core++) {
-        for (int i = 0; i < mixer->channelCount; i++) {
-            if (mixer->channels[i].updateCallback[core] == NULL) {
-                continue;
-            }
 
-            Int32* gen = mixer->genBuffer[core];
-            Int32* mix = mixer->mixBuffer;
-
-            gen = mixer->channels[i].updateCallback[core](mixer->channels[i].ref, gen, count);
-            if (gen == NULL) {
-                continue;
-            }
-
-            for(int sample = 0; sample < count; sample++) {
-                Int32 chanLeft;
-                Int32 chanRight;
-
-                if (mixer->channels[i].stereo) {
-                    chanLeft = mixer->channels[i].volumeLeft * *gen++;
-                    chanRight = mixer->channels[i].volumeRight * *gen++;
-                }
-                else {
-                    Int32 tmp = *gen++;
-                    chanLeft = mixer->channels[i].volumeLeft * tmp;
-                    chanRight = mixer->channels[i].volumeRight * tmp;
-                }
-
-                mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
-                mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
-
-                *mix++ += chanLeft;
-                *mix++ += chanRight;
-            }
-        }
-    }
-#endif
-
-//ESP_LOGI(TAG, "Mixer: Mixing done");
-#if USE_DUAL_CORE
     // Set to zero, will generate an error when tasks are used incorrectly
     mixer->samplesToMix = 0;
-#endif
 
     Int32* mix = mixer->mixBuffer;
     while(count--) {
@@ -627,7 +569,6 @@ void IRAM_ATTR mixerSync(Mixer* mixer)
 
 void mixerSetEnable(Mixer* mixer, bool enable)
 {
-#if USE_DUAL_CORE
     if (!mixer->enable && enable) {
         // Start the audio tasks
         mixer->enable = true;
@@ -644,7 +585,4 @@ void mixerSetEnable(Mixer* mixer, bool enable)
             xSemaphoreTake(mixer->taskData[i].semDone, portMAX_DELAY);
         }
     }
-#else
-    mixer->enable = enable;
-#endif
 }
