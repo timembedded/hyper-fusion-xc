@@ -98,7 +98,7 @@ class YMF278Slot
         int step;               // fixed-point frequency step
         int stepptr;        // fixed-point pointer into the sample
         int pos;
-        int16_t sample;
+        int16_t sample1, sample2;
 
         bool active;        // slot keyed on
         uint8_t bits;       // width of the samples

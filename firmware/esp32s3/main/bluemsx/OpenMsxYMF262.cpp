@@ -443,9 +443,6 @@ void IRAM_ATTR YMF262::advance()
             YMF262Channel &ch = channels[i / 2];
             YMF262Slot &op = ch.slots[i & 1];
 
-            // Phase Generator
-            op.Cnt += op.Incr;
-
             // Envelope Generator
             switch(op.state) {
             case EG_ATT:    // attack phase
@@ -501,6 +498,14 @@ void IRAM_ATTR YMF262::advance()
                 break;
             }
         }
+    }
+
+    // Phase Generator
+    for (int i = 0; i < 18 * 2; i++) {
+        YMF262Channel &ch = channels[i / 2];
+        YMF262Slot &op = ch.slots[i & 1];
+
+        op.Cnt += op.Incr;
     }
 
     // The Noise Generator of the YM3812 is 23-bit shift register.
@@ -920,7 +925,7 @@ void YMF262::setSampleRate(int sampleRate, int Oversampling)
     for (int i = 0; i < 1024; i++) {
         // opn phase increment counter = 20bit
         // -10 because chip works with 10.10 fixed point, while we use 16.16
-        fn_tab[i] = (unsigned)( (double)i * 64 * (1<<(FREQ_SH - 10)));
+        fn_tab[i] = (unsigned)( (double)i * 64 * freqbase * (1<<(FREQ_SH - 10)));
     }
 
     // Amplitude modulation: 27 output levels (triangle waveform);

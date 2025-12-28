@@ -461,7 +461,8 @@ int* IRAM_ATTR YMF278::updateBuffer(int *buffer, int length)
                 continue;
             }
 
-            int16_t sample = sl.sample;
+            int16_t sample = (sl.sample1 * (0x10000 - sl.stepptr) +
+                              sl.sample2 * sl.stepptr) >> 16;
             int vol = sl.TL + (sl.env_vol >> 2) + sl.compute_am();
 
             int volLeft  = vol + pan_left [(int)sl.pan] + vl;
@@ -493,11 +494,14 @@ int* IRAM_ATTR YMF278::updateBuffer(int *buffer, int length)
 
             int count = (sl.stepptr >> 16) & 0x0f;
             sl.stepptr &= 0xffff;
-            sl.pos += count;
-            if (sl.pos >= sl.endaddr) {
-                sl.pos = sl.loopaddr + (sl.pos - sl.endaddr);
+            while (count--) {
+                sl.sample1 = sl.sample2;
+                sl.pos++;
+                if (sl.pos >= sl.endaddr) {
+                    sl.pos = sl.loopaddr;
+                }
+                sl.sample2 = getSample(sl);
             }
-            sl.sample = getSample(sl);
         }
         advance();
         *buf++ = left;
@@ -520,8 +524,9 @@ void IRAM_ATTR YMF278::keyOnHelper(YMF278Slot& slot)
     slot.state = EG_ATT;
     slot.stepptr = 0;
     slot.pos = 0;
-    slot.sample = getSample(slot);
+    slot.sample1 = getSample(slot);
     slot.pos = 1;
+    slot.sample2 = slot.sample1;
 }
 
 void IRAM_ATTR YMF278::writeRegOPL4(uint8_t reg, uint8_t data)

@@ -95,7 +95,7 @@ extern "C" MsxAudioHndl msxaudioCreate(Mixer* mixer)
     msxaudio->mixer = mixer;
     msxaudio->registerLatch = 0;
 
-    msxaudio->handle = mixerRegisterChannel(mixer, 1, MIXER_CHANNEL_MSXAUDIO, 0, msxaudioSync, msxaudio);
+    msxaudio->handle = mixerRegisterChannel(mixer, 0, MIXER_CHANNEL_MSXAUDIO, 0, msxaudioSync, msxaudio);
 
     msxaudio->y8950 = new Y8950(256*1024);
     msxaudio->y8950->setSampleRate(AUDIO_SAMPLERATE, boardGetY8950Oversampling);
