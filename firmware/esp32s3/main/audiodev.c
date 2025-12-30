@@ -48,6 +48,7 @@ struct audiodev_t {
     write_samples_callback_t write_samples_callback;
     SemaphoreHandle_t mixer_sem;
     emutimer_handle_t timer_mixer;
+    bool mixer_reset;
     Mixer *mixer;
     AY8910 *psg;
     YM_2413 *ym2413;
@@ -214,31 +215,61 @@ void audiodev_start(audiodev_handle_t audiodev)
     // Enable mixer
     mixerSetEnable(audiodev->mixer, true);
 
-    // Reset timers
-    timer_reset(audiodev->timer_mixer);
-
     // Start mixer thread
+    audiodev->mixer_reset = true;
     xSemaphoreGive(audiodev->mixer_sem);
 }
 
 static void IRAM_ATTR audio_mixer_task(void *args)
 {
     audiodev_handle_t audiodev = (audiodev_handle_t)args;
-    uint32_t tdiffprev = 0;
+    uint32_t tdiffprev = 0, tdiffprev2 = 0;
+    uint32_t loadmax = 0;
 
-    /* Enable the TX channel */
-    while (1) {
+    // Audio mixing loop
+    for(;;) {
         xSemaphoreTake(audiodev->mixer_sem, portMAX_DELAY);
+
+        // Handle reset
+        if (audiodev->mixer_reset) {
+            // Reset timer and warm-up caches
+            timer_reset(audiodev->timer_mixer);
+            xSemaphoreGive(audiodev->mixer_sem);
+            vTaskDelay(2);
+            xSemaphoreTake(audiodev->mixer_sem, portMAX_DELAY);
+            mixerSync(audiodev->mixer);
+            audiodev->mixer_reset = false;
+            xSemaphoreGive(audiodev->mixer_sem);
+            continue;
+        }
+
+        // Mix audio
         uint32_t tbefore = xTaskGetTickCount();
         mixerSync(audiodev->mixer);
         uint32_t tafter = xTaskGetTickCount();
         xSemaphoreGive(audiodev->mixer_sem);
 
+        // Calculate and report CPU load
         uint32_t tdiff = tafter - tbefore;
         if (tdiff != tdiffprev) {
-            tdiffprev = tdiff;
-            printf("Mixer CPU Load: %lu\n", tdiff);
+            bool report = true;
+            if (tdiff == tdiffprev2) {
+                report = false;
+            }
+            if (tdiff > loadmax) {
+                loadmax = tdiff;
+                report = true;
+            }
+            if (report) {
+                if (tdiffprev != tdiff) {
+                    tdiffprev2 = tdiffprev;
+                    tdiffprev = tdiff;
+                }
+                printf("Mixer CPU Load: %lu, max = %lu\n", tdiff, loadmax);
+            }
         }
+
+        // Yield to other tasks
         vTaskDelay(1);
     }
     vTaskDelete(NULL);
