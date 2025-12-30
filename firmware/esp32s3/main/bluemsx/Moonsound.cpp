@@ -136,8 +136,8 @@ Moonsound* moonsoundCreate(Mixer* mixer, void* romData, int romSize, int sramSiz
 
     moonsound->mixer = mixer;
 
-    moonsound->handle = mixerRegisterChannel(mixer, 0, MIXER_CHANNEL_YMF262, 1, moonsoundSyncYMF262, moonsound);
-    moonsound->handle = mixerRegisterChannel(mixer, 1, MIXER_CHANNEL_YMF278, 1, moonsoundSyncYMF278, moonsound);
+    moonsound->handle = mixerRegisterChannel(mixer, 0, MIXER_CHANNEL_YMF262, 0, true, moonsoundSyncYMF262, moonsound);
+    moonsound->handle = mixerRegisterChannel(mixer, 1, MIXER_CHANNEL_YMF278, 0, true, moonsoundSyncYMF278, moonsound);
 
     moonsound->ymf262 = new YMF262();
     moonsound->ymf262->setSampleRate(AUDIO_SAMPLERATE, 1);

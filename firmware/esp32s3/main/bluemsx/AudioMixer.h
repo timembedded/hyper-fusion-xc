@@ -41,8 +41,10 @@ typedef struct Mixer Mixer;
 typedef enum {
     MIXER_CHANNEL_PSG = 0,
     MIXER_CHANNEL_SCC,
-    MIXER_CHANNEL_MSXMUSIC,
-    MIXER_CHANNEL_MSXAUDIO,
+    MIXER_CHANNEL_MSXMUSIC_VOICE,
+    MIXER_CHANNEL_MSXMUSIC_DRUM,
+    MIXER_CHANNEL_MSXAUDIO_VOICE,
+    MIXER_CHANNEL_MSXAUDIO_DRUM,
     MIXER_CHANNEL_YMF262,
     MIXER_CHANNEL_YMF278,
     MIXER_CHANNEL_KEYBOARD,
@@ -84,7 +86,7 @@ void mixerSetWriteCallback(Mixer* mixer, MixerWriteCallback callback, void*);
 void mixerReset(Mixer* mixer);
 void mixerSync(Mixer* mixer);
 
-Int32 mixerRegisterChannel(Mixer* mixer, int core, Int32 audioType, Int32 stereo,
+Int32 mixerRegisterChannel(Mixer* mixer, int core, Int32 audioType, Int32 connectedType, bool stereo,
                            MixerUpdateCallback callback, void*param);
 void mixerSetEnable(Mixer* mixer, bool enable);
 void mixerUnregisterChannel(Mixer* mixer, Int32 handle);

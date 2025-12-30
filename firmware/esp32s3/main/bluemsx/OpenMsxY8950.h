@@ -287,7 +287,7 @@ private:
     inline void update_noise();
     inline void update_ampm();
 
-    inline int calcSample(int channelMask);
+    inline void calcSample(int channelMask, int *voice, int *drum);
     void checkMute();
     bool checkMuteHelper();
 

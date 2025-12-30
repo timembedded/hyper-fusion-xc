@@ -1374,28 +1374,29 @@ int* OpenYM2413::updateBuffer(int *buffer, int length)
     
     int* buf = buffer;
     while (length--) {
-        int output = 0;
+        int output_voice = 0;
+        int output_drum = 0;
         int count = oplOversampling;
         while (count--) {
             advance_lfo();
-            output += channels[0].chan_calc(LFO_AM);
-            output += channels[1].chan_calc(LFO_AM);
-            output += channels[2].chan_calc(LFO_AM);
-            output += channels[3].chan_calc(LFO_AM);
-            output += channels[4].chan_calc(LFO_AM);
-            output += channels[5].chan_calc(LFO_AM);
+            output_voice += channels[0].chan_calc(LFO_AM);
+            output_voice += channels[1].chan_calc(LFO_AM);
+            output_voice += channels[2].chan_calc(LFO_AM);
+            output_voice += channels[3].chan_calc(LFO_AM);
+            output_voice += channels[4].chan_calc(LFO_AM);
+            output_voice += channels[5].chan_calc(LFO_AM);
             if (!rhythm) {
-                output += channels[6].chan_calc(LFO_AM);
-                output += channels[7].chan_calc(LFO_AM);
-                output += channels[8].chan_calc(LFO_AM);
+                output_voice += channels[6].chan_calc(LFO_AM);
+                output_voice += channels[7].chan_calc(LFO_AM);
+                output_voice += channels[8].chan_calc(LFO_AM);
             } else {
-                output += rhythm_calc(noise_rng & 1);
+                output_drum += rhythm_calc(noise_rng & 1);
             }
             advance();
         }
         
-//      *(buf++) = (output << 5) / oplOversampling;
-        *(buf++) = filter((output << 5) / oplOversampling);
+        *(buf++) = filter((output_voice << 5) / oplOversampling);
+        *(buf++) = filter((output_drum << 5) / oplOversampling);
     }
     checkMute();
     return buffer;

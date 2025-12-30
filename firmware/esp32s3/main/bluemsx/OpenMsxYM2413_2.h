@@ -235,7 +235,7 @@ public:
     virtual void setSampleRate(int newSampleRate, int Oversampling);
     
 private:
-    int calcSample();
+    void calcSample(int *voice, int *drum);
 
     void checkMute();
     bool checkMuteHelper();

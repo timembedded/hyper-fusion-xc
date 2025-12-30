@@ -734,45 +734,52 @@ int Y8950::Slot::calc_slot_hat(int a, int b, int whitenoise)
 }
 
 
-int Y8950::calcSample(int channelMask)
+void Y8950::calcSample(int channelMask, int *voice, int *drum)
 {
     // while muted update_ampm() and update_noise() aren't called, probably ok
     update_ampm();
     update_noise();      
 
-    int mix = 0;
+    int mix_drum = 0;
+    int mix_voice = 0;
+
     if (rythm_mode) {
         // TODO wasn't in original source either
         ch[7].mod.calc_phase();
         ch[8].car.calc_phase();
 
-        if (channelMask & (1 << 6))
-            mix += ch[6].car.calc_slot_car(ch[6].mod.calc_slot_mod());
-        if (ch[7].mod.eg_mode != FINISH)
-            mix += ch[7].mod.calc_slot_hat(noiseA, noiseB, whitenoise);
-        if (channelMask & (1 << 7))
-            mix += ch[7].car.calc_slot_snare(whitenoise);
-        if (ch[8].mod.eg_mode != FINISH)
-            mix += ch[8].mod.calc_slot_tom();
-        if (channelMask & (1 << 8))
-            mix += ch[8].car.calc_slot_cym(noiseA, noiseB); 
+        if (drum) {
+            if (channelMask & (1 << 6))
+                mix_drum += ch[6].car.calc_slot_car(ch[6].mod.calc_slot_mod());
+            if (ch[7].mod.eg_mode != FINISH)
+                mix_drum += ch[7].mod.calc_slot_hat(noiseA, noiseB, whitenoise);
+            if (channelMask & (1 << 7))
+                mix_drum += ch[7].car.calc_slot_snare(whitenoise);
+            if (ch[8].mod.eg_mode != FINISH)
+                mix_drum += ch[8].mod.calc_slot_tom();
+            if (channelMask & (1 << 8))
+                mix_drum += ch[8].car.calc_slot_cym(noiseA, noiseB); 
 
+            mix_drum *= 2;
+        }
         channelMask &= (1<< 6) - 1;
-        mix *= 2;
     }
+
     for (Channel *cp = ch; channelMask; channelMask >>=1, cp++) {
         if (channelMask & 1) {
             if (cp->alg)
-                mix += cp->car.calc_slot_car(0) +
-                       cp->mod.calc_slot_mod();
+                mix_voice += cp->car.calc_slot_car(0) +
+                    cp->mod.calc_slot_mod();
             else
-                mix += cp->car.calc_slot_car( 
-                         cp->mod.calc_slot_mod());
+                mix_voice += cp->car.calc_slot_car( 
+                    cp->mod.calc_slot_mod());
         }
     }
-    mix += adpcm.calcSample();
 
-    return (mix*maxVolume) >> (DB2LIN_AMP_BITS - 1);
+    mix_drum += adpcm.calcSample();
+
+    *voice = (mix_voice * maxVolume) >> (DB2LIN_AMP_BITS - 1);
+    *drum = (mix_drum * maxVolume) >> (DB2LIN_AMP_BITS - 1);
 }
 
 
@@ -804,8 +811,6 @@ bool Y8950::checkMuteHelper()
 
 int* Y8950::updateBuffer(int *buffer, int length)
 {
-    //PRT_DEBUG("Y8950: update buffer");
-
     if (isInternalMuted() && !dacEnabled) {
         return NULL;
     }
@@ -820,13 +825,16 @@ int* Y8950::updateBuffer(int *buffer, int length)
     }
 
     int* buf = buffer;
+    int voice, drum;
     while (length--) {
-        int sample = calcSample(channelMask);
+        calcSample(channelMask, &voice, &drum);
 
         dacCtrlVolume = 0x3fe7 * dacCtrlVolume / 0x4000;
         dacDaVolume += 2 * (dacCtrlVolume - dacDaVolume) / 3;
-        sample += 48 * dacDaVolume;
-        *(buf++) = sample;
+        voice += 48 * dacDaVolume;
+        drum += 48 * dacDaVolume;
+        *(buf++) = voice;
+        *(buf++) = drum;
     }
 
     dacEnabled = dacDaVolume;

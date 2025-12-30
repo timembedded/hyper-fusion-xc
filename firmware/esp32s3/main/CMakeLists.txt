@@ -12,6 +12,7 @@ idf_component_register(
     "bluemsx//AY8910.c"
     "bluemsx//AudioMixer.c"
     "bluemsx//IoPort.c"
+    "bluemsx//OpenMsxYM2413.cpp"
     "bluemsx//OpenMsxYM2413_2.cpp"
     "bluemsx//YM2413.cpp"
     "bluemsx//MsxAudio.cpp"

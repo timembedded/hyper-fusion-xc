@@ -74,11 +74,12 @@ typedef struct {
     MixerUpdateCallback updateCallback[2];
     void* ref;
     MixerAudioType type;
+    MixerAudioType connectedType;
     // User config
     Int32 volume;
     Int32 pan;
     bool  enable;
-    Int32 stereo;
+    bool  stereo;
     // Internal config
     Int32 volumeLeft;
     Int32 volumeRight;
@@ -298,7 +299,7 @@ void mixerSetWriteCallback(Mixer* mixer, MixerWriteCallback callback, void* ref)
     mixer->writeRef = ref;
 }
 
-Int32 mixerRegisterChannel(Mixer* mixer, int core, Int32 audioType, Int32 stereo, MixerUpdateCallback callback, void* ref)
+Int32 mixerRegisterChannel(Mixer* mixer, int core, Int32 audioType, Int32 connectedType, bool stereo, MixerUpdateCallback callback, void* ref)
 {
     MixerChannel*  channel = mixer->channels + mixer->channelCount;
     AudioTypeInfo* type    = mixer->audioTypeInfo + audioType;
@@ -312,11 +313,22 @@ Int32 mixerRegisterChannel(Mixer* mixer, int core, Int32 audioType, Int32 stereo
     channel->updateCallback[core] = callback;
     channel->ref            = ref;
     channel->type           = audioType;
+    channel->connectedType  = connectedType? connectedType : MIXER_CHANNEL_TYPE_COUNT;
     channel->stereo         = stereo;
     channel->enable         = type->enable;
     channel->volume         = type->volume;
     channel->pan            = type->pan;
     channel->handle         = ++mixer->handleCount;
+
+    if (connectedType) {
+        MixerChannel* connected_channel = mixer->channels + mixer->channelCount;
+        if (mixer->channelCount == MAX_CHANNELS - 1) {
+            return 0;
+        }
+        mixer->channelCount++;
+        connected_channel->type = connectedType;
+        connected_channel->connectedType = MIXER_CHANNEL_TYPE_COUNT;
+    }
 
     recalculateChannelVolume(mixer, channel);
 
@@ -397,24 +409,43 @@ void IRAM_ATTR MixerTask(void *args)
             xSemaphoreTake(mixer->semMix, portMAX_DELAY);
 
             for(int sample = 0; sample < count; sample++) {
-                Int32 chanLeft;
-                Int32 chanRight;
+                if (mixer->channels[i].connectedType != MIXER_CHANNEL_TYPE_COUNT) {
+                    int connectedType = mixer->channels[i].connectedType;
+                    int chanLeft;
+                    int chanRight;
 
-                if (mixer->channels[i].stereo) {
-                    chanLeft = mixer->channels[i].volumeLeft * *gen++;
-                    chanRight = mixer->channels[i].volumeRight * *gen++;
-                }
-                else {
-                    Int32 tmp = *gen++;
+                    int tmp = *gen++;
                     chanLeft = mixer->channels[i].volumeLeft * tmp;
                     chanRight = mixer->channels[i].volumeRight * tmp;
+
+                    tmp = *gen++;
+                    chanLeft += mixer->channels[connectedType].volumeLeft * tmp;
+                    chanRight += mixer->channels[connectedType].volumeRight * tmp;
+
+                    mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
+                    mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
+
+                    *mix++ += chanLeft;
+                    *mix++ += chanRight;
+                }else{
+                    int chanLeft;
+                    int chanRight;
+
+                    if (mixer->channels[i].stereo) {
+                        chanLeft = mixer->channels[i].volumeLeft * *gen++;
+                        chanRight = mixer->channels[i].volumeRight * *gen++;
+                    }else{
+                        Int32 tmp = *gen++;
+                        chanLeft = mixer->channels[i].volumeLeft * tmp;
+                        chanRight = mixer->channels[i].volumeRight * tmp;
+                    }
+
+                    mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
+                    mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
+
+                    *mix++ += chanLeft;
+                    *mix++ += chanRight;
                 }
-
-                mixer->channels[i].volCntLeft  += (chanLeft  > 0 ? chanLeft  : -chanLeft)  / 2048;
-                mixer->channels[i].volCntRight += (chanRight > 0 ? chanRight : -chanRight) / 2048;
-
-                *mix++ += chanLeft;
-                *mix++ += chanRight;
             }
 
             xSemaphoreGive(mixer->semMix);

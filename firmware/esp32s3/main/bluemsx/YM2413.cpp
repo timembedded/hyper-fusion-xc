@@ -101,7 +101,7 @@ YM_2413* ym2413Create(Mixer* mixer)
 
     ym2413->mixer = mixer;
 
-    ym2413->handle = mixerRegisterChannel(mixer, 1, MIXER_CHANNEL_MSXMUSIC, 0, ym2413Sync, ym2413);
+    ym2413->handle = mixerRegisterChannel(mixer, 1, MIXER_CHANNEL_MSXMUSIC_VOICE, MIXER_CHANNEL_MSXMUSIC_DRUM, false, ym2413Sync, ym2413);
 
     ym2413->ym2413->setSampleRate(AUDIO_SAMPLERATE, oversamplingYM2413);
     ym2413->ym2413->setVolume(32767 * 9 / 10);
