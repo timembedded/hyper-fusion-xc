@@ -99,6 +99,10 @@ class YMF278Slot
         int stepptr;        // fixed-point pointer into the sample
         int pos;
         int16_t sample1, sample2;
+        bool transition;    // true if in sample transition
+        uint8_t transition_reg[16];
+        uint8_t transition_data[16];
+        int transition_index;
 
         bool active;        // slot keyed on
         uint8_t bits;       // width of the samples
@@ -129,13 +133,14 @@ class YMF278 : public SoundDevice
         YMF278(int ramSize, void* romData, int romSize);
         virtual ~YMF278();
         void reset();
-        void writeRegOPL4(uint8_t reg, uint8_t data);
+        void writeRegOPL4(uint8_t reg, uint8_t data, bool isPostponed = false);
         uint8_t readRegOPL4(uint8_t reg);
         virtual void setSampleRate(int sampleRate, int Oversampling);
         virtual void setInternalVolume(int16_t newVolume);
         virtual int* updateBuffer(int *buffer, int length);
 
     private:
+        void handlePostponedRegs(YMF278Slot& slot);
         uint8_t readMem(unsigned int address);
         void writeMem(unsigned int address, uint8_t value);
         int16_t getSample(YMF278Slot &op);

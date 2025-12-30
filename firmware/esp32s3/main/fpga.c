@@ -39,7 +39,7 @@
 
 #define FPGA_BUSY_TIMEOUT_MS  100
 
-#define FPGA_CLK_FREQ         (4*1000*1000)
+#define FPGA_CLK_FREQ         (20*1000*1000)
 #define FPGA_INPUT_DELAY_NS   0
 
 #define SPI_HOST              SPI2_HOST

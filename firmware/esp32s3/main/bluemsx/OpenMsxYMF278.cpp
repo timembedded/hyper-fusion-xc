@@ -7,7 +7,10 @@
 #include <cmath>
 #include <cstring>
 #include <stdlib.h>
+#include <esp_log.h>
 #include <esp_heap_caps.h>
+
+#define TAG "YMF278"
 
 #include "Board.h"
 
@@ -189,6 +192,8 @@ void YMF278Slot::reset()
 
     state = EG_OFF;
     active = false;
+    transition = false;
+    transition_index = 0;
 }
 
 void IRAM_ATTR YMF278Slot::update_AR()
@@ -458,6 +463,10 @@ int* IRAM_ATTR YMF278::updateBuffer(int *buffer, int length)
         for (int i = 0; i < 24; i++) {
             YMF278Slot &sl = slots[i];
             if (!sl.active) {
+                // Finish any sample transition postponed writes
+                if (sl.transition) {
+                    handlePostponedRegs(sl);
+                }
                 continue;
             }
 
@@ -502,6 +511,13 @@ int* IRAM_ATTR YMF278::updateBuffer(int *buffer, int length)
                 }
                 sl.sample2 = getSample(sl);
             }
+
+            // Handle sample transition postponed writes at zero crossing
+            if (sl.transition &&
+                ((sl.sample1 <= 0 && sl.sample2 >= 0) || 
+                 (sl.sample1 >= 0 && sl.sample2 <= 0))) {
+                handlePostponedRegs(sl);
+            }
         }
         advance();
         *buf++ = left;
@@ -526,17 +542,53 @@ void IRAM_ATTR YMF278::keyOnHelper(YMF278Slot& slot)
     slot.pos = 0;
     slot.sample1 = getSample(slot);
     slot.pos = 1;
-    slot.sample2 = slot.sample1;
+    slot.sample2 = getSample(slot);
 }
 
-void IRAM_ATTR YMF278::writeRegOPL4(uint8_t reg, uint8_t data)
+void IRAM_ATTR YMF278::handlePostponedRegs(YMF278Slot& slot)
+{
+    slot.transition = false;
+    if (slot.transition_index > 0) {
+        for(int i = 0; i < slot.transition_index; i++) {
+            writeRegOPL4(slot.transition_reg[i], slot.transition_data[i], true);
+        }
+        slot.transition_index = 0;
+    }
+}
+
+void IRAM_ATTR YMF278::writeRegOPL4(uint8_t reg, uint8_t data, bool isPostponed)
 {
     // Handle slot registers specifically
     if (reg >= 0x08 && reg <= 0xF7) {
         int snum = (reg - 8) % 24;
         YMF278Slot& slot = slots[snum];
+
+        // Postpone writes during sample transition
+        if (slot.transition) {
+            if (slot.transition_index >= sizeof(slot.transition_reg)) {
+                // Not expected to happen, when it does, write all the postponed regs now
+                ESP_LOGW(TAG, "Preventing transition buffer overflow\n");
+                handlePostponedRegs(slot);
+                isPostponed = true; // do not postpone this write
+            }else{
+                // Postpone this register write
+                slot.transition_reg[slot.transition_index] = reg;
+                slot.transition_data[slot.transition_index++] = data;
+                return;
+            }
+        }
+        slot.transition = slot.active && !isPostponed;
+        if (slot.transition) {
+            // Postpone slot register write until zero crossing of current sample
+            slot.transition_reg[0] = reg;
+            slot.transition_data[0] = data;
+            slot.transition_index = 1;
+            return;
+        }
+
         switch ((reg - 8) / 24) {
         case 0: {
+            bool key_on = (regs[reg + 4] & 0x080);
             slot.wave = (slot.wave & 0x100) | data;
             int base = (slot.wave < 384 || !wavetblhdr) ?
                        (slot.wave * 12) :
@@ -582,7 +634,7 @@ void IRAM_ATTR YMF278::writeRegOPL4(uint8_t reg, uint8_t data)
             slot.update_RR();
             slot.update_C5();
 
-            if ((regs[reg + 4] & 0x080)) {
+            if (key_on) {
                 keyOnHelper(slot);
             }
             break;

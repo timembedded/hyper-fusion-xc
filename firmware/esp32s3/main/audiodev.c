@@ -111,8 +111,11 @@ static uint32_t IRAM_ATTR mixer_get_samples_callback(void *ref)
 
     // Get the amount of samples to generate
     uint32_t count = timer_get_duration(audiodev->timer_mixer);
-    if (count >= 1000) {
+    if (count >= AUDIO_MONO_BUFFER_SIZE/4) {
         ESP_LOGI(TAG, "mix %d", count);
+        if (count > AUDIO_MONO_BUFFER_SIZE/2) {
+            count = AUDIO_MONO_BUFFER_SIZE/2;
+        }
     }
 
     return count;
