@@ -567,7 +567,7 @@ void IRAM_ATTR YMF278::writeRegOPL4(uint8_t reg, uint8_t data, bool isPostponed)
         if (slot.transition) {
             if (slot.transition_index >= sizeof(slot.transition_reg)) {
                 // Not expected to happen, when it does, write all the postponed regs now
-                ESP_LOGW(TAG, "Preventing transition buffer overflow\n");
+                ESP_LOGW(TAG, "Preventing transition buffer overflow");
                 handlePostponedRegs(slot);
                 isPostponed = true; // do not postpone this write
             }else{

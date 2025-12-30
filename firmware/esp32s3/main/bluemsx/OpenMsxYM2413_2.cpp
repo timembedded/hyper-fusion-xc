@@ -1007,8 +1007,11 @@ bool OpenYM2413_2::checkMuteHelper()
 
 int* OpenYM2413_2::updateBuffer(int *buffer, int length)
 {
-    int* buf = buffer;
+    if (isInternalMuted()) {
+        return NULL;
+    }
 
+    int* buf = buffer;
     while (length--) {
         *(buf++) = calcSample();
     }
