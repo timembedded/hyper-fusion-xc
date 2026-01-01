@@ -39,8 +39,8 @@ class SoundDevice
     protected:
         virtual void setInternalVolume(short newVolume) = 0;
         void setInternalMute(bool muted) { internalMuted = muted; }
-        bool isInternalMuted() const { return internalMuted; }
     public:
+        bool isInternalMuted() const { return internalMuted; }
         virtual void setSampleRate(int newSampleRate, int Oversampling) = 0;
         virtual int* updateBuffer(int *buffer, int length) = 0;
 

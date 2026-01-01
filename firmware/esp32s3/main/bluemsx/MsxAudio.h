@@ -45,6 +45,8 @@ void msxaudioTick(UInt32 elapsedTime);
 
 Int32* msxaudioSync(void* ref, Int32 *buffer, UInt32 count);
 
+bool msxaudioIsMuted(MsxAudioHndl audio);
+
 #ifdef __cplusplus
 }
 #endif

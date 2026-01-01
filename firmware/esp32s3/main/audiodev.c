@@ -49,6 +49,7 @@ struct audiodev_t {
     SemaphoreHandle_t mixer_sem;
     emutimer_handle_t timer_mixer;
     bool mixer_reset;
+    bool use_stereo;
     Mixer *mixer;
     AY8910 *psg;
     YM_2413 *ym2413;
@@ -177,6 +178,9 @@ void audiodev_start(audiodev_handle_t audiodev)
     // Create mixer
     audiodev->mixer = mixerCreate(mixer_get_samples_callback, audiodev, 128);
 
+    // By default use MSX-MUSIC separately MSX-AUDIO (mono)
+    audiodev->use_stereo = false;
+
     // Create sound chips
     audiodev->psg = ay8910Create(audiodev->mixer, AY8910_MSX, PSGTYPE_AY8910);
     audiodev->ym2413 = ym2413Create(audiodev->mixer);
@@ -195,9 +199,9 @@ void audiodev_start(audiodev_handle_t audiodev)
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_YMF262, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_YMF278, 100);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_PSG, 50);
-    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 0);
+    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_DRUM, 50);
-    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_VOICE, 100);
+    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_VOICE, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_DRUM, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_YMF262, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_YMF278, 50);
@@ -254,6 +258,25 @@ static void IRAM_ATTR audio_mixer_task(void *args)
         mixerSync(audiodev->mixer);
         uint32_t tafter = xTaskGetTickCount();
         xSemaphoreGive(audiodev->mixer_sem);
+
+        // Automatically switch between mono and stereo mode for MSX-MUSIC+MSX-AUDIO
+        bool msx_music_active = audiodev->ym2413 && !ym2413IsMuted(audiodev->ym2413);
+        bool msx_audio_active = audiodev->msxaudio && !msxaudioIsMuted(audiodev->msxaudio);
+        if (msx_music_active || msx_audio_active) {
+            bool use_stereo = msx_music_active && msx_audio_active;
+            if (use_stereo != audiodev->use_stereo) {
+                audiodev->use_stereo = use_stereo;
+                if (use_stereo) {
+                    ESP_LOGI(TAG, "Switching to stereo mode for MSX-MUSIC + MSX-AUDIO");
+                    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 0);
+                    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_VOICE, 100);
+                } else {
+                    ESP_LOGI(TAG, "Switching to mono mode for MSX-MUSIC + MSX-AUDIO");
+                    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 50);
+                    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_VOICE, 50);
+                }
+            }
+        }
 
         // Calculate and report CPU load
         uint32_t tdiff = tafter - tbefore;

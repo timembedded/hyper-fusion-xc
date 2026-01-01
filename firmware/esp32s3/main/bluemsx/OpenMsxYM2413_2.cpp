@@ -914,7 +914,9 @@ int OpenYM2413_2::Slot::calc_slot_hat(int pgout_cym, bool noise)
     return tables->dB2LinTab[dbout + egout];
 }
 
-int OpenYM2413_2::filter(int input) {
+int OpenYM2413_2::filter(int id, int input)
+{
+    int* in = filter_values[id];
     in[4] = in[3];
     in[3] = in[2];
     in[2] = in[1];
@@ -978,8 +980,8 @@ void OpenYM2413_2::calcSample(int *voice, int *drum)
             mix_voice += cp->car.calc_slot_car(cp->mod.calc_slot_mod());
         }
     }
-    *voice = filter((maxVolume * mix_voice) >> (DB2LIN_AMP_BITS - 1));
-    *drum = filter((maxVolume * mix_drum) >> (DB2LIN_AMP_BITS - 1));
+    *voice = filter(0, (maxVolume * mix_voice) >> (DB2LIN_AMP_BITS - 1));
+    *drum = filter(1, (maxVolume * mix_drum) >> (DB2LIN_AMP_BITS - 1));
 }
 
 void OpenYM2413_2::checkMute()
@@ -989,19 +991,31 @@ void OpenYM2413_2::checkMute()
 
 bool OpenYM2413_2::checkMuteHelper()
 {
-    for (int i = 0; i < 6; i++) {
-        if (ch[i].car.eg_mode != FINISH) return false;
-    }
-    if (!(reg[0x0e] & 0x20)) {
-        for(int i = 6; i < 9; i++) {
-             if (ch[i].car.eg_mode != FINISH) return false;
+    if (ch[6].patch_number & 0x10) {
+        if (ch[6].car.eg_mode != FINISH) {
+            return false;
         }
-    } else {
-        if (ch[6].car.eg_mode != FINISH) return false;
-        if (ch[7].mod.eg_mode != FINISH) return false;
-        if (ch[7].car.eg_mode != FINISH) return false;
-        if (ch[8].mod.eg_mode != FINISH) return false;
-        if (ch[8].car.eg_mode != FINISH) return false;
+    }
+    if (ch[7].patch_number & 0x10) {
+        if (ch[7].mod.eg_mode != FINISH) {
+            return false;
+        }
+        if (ch[7].car.eg_mode != FINISH) {
+            return false;
+        }
+    }
+    if (ch[8].patch_number & 0x10) {
+        if (ch[8].mod.eg_mode != FINISH) {
+            return false;
+        }
+        if (ch[8].car.eg_mode != FINISH) {
+            return false;
+        }
+    }
+    for (int i = 0; i < 9; ++i) {
+        if (ch[i].car.eg_mode != FINISH) {
+            return false;
+        }
     }
     return true;    // nothing is playing, then mute
 }

@@ -45,6 +45,7 @@ void ym2413Destroy(YM_2413* ym2413);
 void ym2413WriteAddress(YM_2413* ym2413, UInt8 address);
 void ym2413WriteData(YM_2413* ym2413, UInt8 data);
 void ym2413Reset(YM_2413* ref);
+bool ym2413IsMuted(YM_2413* ref);
 
 #ifdef __cplusplus
 }

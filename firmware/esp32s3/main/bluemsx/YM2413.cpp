@@ -63,6 +63,12 @@ void ym2413Reset(YM_2413* ref)
     ym2413->ym2413->reset();
 }
 
+bool ym2413IsMuted(YM_2413* ref)
+{
+    YM_2413* ym2413 = (YM_2413*)ref;
+    return ym2413->ym2413->isInternalMuted();
+}
+
 void ym2413WriteAddress(YM_2413* ym2413, UInt8 address)
 {
     ym2413->address = address & 0x3f;

@@ -88,6 +88,12 @@ extern "C" void msxaudioWrite(MsxAudio* msxaudio, UInt16 ioPort, UInt8 value)
     }
 }
 
+extern "C" bool msxaudioIsMuted(MsxAudioHndl audio)
+{
+    MsxAudio* msxaudio = (MsxAudio*)audio;
+    return msxaudio->y8950->isInternalMuted();
+}
+
 extern "C" MsxAudioHndl msxaudioCreate(Mixer* mixer)
 {
     MsxAudio* msxaudio = new MsxAudio;

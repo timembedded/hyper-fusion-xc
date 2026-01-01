@@ -32,8 +32,8 @@ class SoundDevice
     protected:
         virtual void setInternalVolume(short newVolume) = 0;
         void setInternalMute(bool muted) { internalMuted = muted; }
-        bool isInternalMuted() const { return internalMuted; }
     public:
+        bool isInternalMuted() const { return internalMuted; }
         virtual void setSampleRate(int newSampleRate, int Oversampling) = 0;
         virtual int* updateBuffer(int *buffer, int length) = 0;
 
@@ -271,7 +271,7 @@ private:
     inline static unsigned int DB_POS(double x);
     inline static unsigned int DB_NEG(double x);
 
-    int filter(int input);
+    int filter(int id, int input);
 private:
     int maxVolume;
 
@@ -289,7 +289,8 @@ private:
     // Noise Generator
     int noise_seed;
 
-        int in[5];
+    // Filter
+    int filter_values[2][5];
 
     // CHECK check with orig code header file line 98-104
     
