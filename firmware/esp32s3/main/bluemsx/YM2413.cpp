@@ -26,77 +26,72 @@
 ******************************************************************************
 */
 #include "YM2413.h"
-#include "OpenMsxYM2413.h"
-#include "OpenMsxYM2413_2.h"
+#include "YM2413Burczynski.hh"
 #include <cstring>
 #include "Board.h"
 #include "IoPort.h"
+#include <span>
+#include "xrange.hh"
 
 #define FREQUENCY        3579545
  
 struct YM_2413 {
-    YM_2413() : address(0) {
-        if (0) {
-             ym2413 = new OpenYM2413(100);
-        }
-        else {
-             ym2413 = new OpenYM2413_2(100);
-        }
+    YM_2413() {
+        chip = new openmsx::YM2413Burczynski::YM2413();
+        address = 0;
     }
-
     ~YM_2413() {
-        delete ym2413;
+        delete chip;
     }
 
     Mixer* mixer;
     Int32  handle;
+    uint8_t address;
 
-    OpenYM2413Base* ym2413;
-    UInt8  address;
-    UInt8  registers[256];
+    openmsx::YM2413Core* chip;
 };
 
 void ym2413Reset(YM_2413* ref)
 {
     YM_2413* ym2413 = (YM_2413*)ref;
-
-    ym2413->ym2413->reset();
+    ym2413->chip->reset();
 }
 
 bool ym2413IsMuted(YM_2413* ref)
 {
-    YM_2413* ym2413 = (YM_2413*)ref;
-    return ym2413->ym2413->isInternalMuted();
-}
-
-void ym2413WriteAddress(YM_2413* ym2413, UInt8 address)
-{
-    ym2413->address = address & 0x3f;
-}
-
-void ym2413WriteData(YM_2413* ym2413, UInt8 data)
-{
-    mixerSync(ym2413->mixer);
-    ym2413->registers[ym2413->address & 0xff] = data;
-    ym2413->ym2413->writeReg(ym2413->address, data);
+    return false; // for now
 }
 
 static Int32* ym2413Sync(void* ref, Int32 *buffer, UInt32 count) 
 {
     YM_2413* ym2413 = (YM_2413*)ref;
-    return (Int32*)ym2413->ym2413->updateBuffer((int*)buffer, count);
+
+    if (count == 0) return NULL;
+
+	std::array<int32_t*, 2> bufs;
+
+    bufs[0] = buffer;
+    bufs[1] = buffer + 1;
+
+	ym2413->chip->generateChannels(bufs, count);
+
+    if (bufs[0] == nullptr && bufs[1] == nullptr) {
+        return nullptr;
+    }
+
+    return buffer;
 }
 
 static void writeAddr(void *ym, UInt16 port, UInt8 data)
 {
     YM_2413* ym2413 = (YM_2413*)ym;
-    ym2413WriteAddress(ym2413, data);
+    ym2413->address = data;
 }
 
 static void writeData(void *ym, UInt16 port, UInt8 data)
 {
     YM_2413* ym2413 = (YM_2413*)ym;
-    ym2413WriteData(ym2413, data);
+    ym2413->chip->pokeReg(ym2413->address, data);
 }
 
 YM_2413* ym2413Create(Mixer* mixer)
@@ -108,11 +103,6 @@ YM_2413* ym2413Create(Mixer* mixer)
     ym2413->mixer = mixer;
 
     ym2413->handle = mixerRegisterChannel(mixer, 1, MIXER_CHANNEL_MSXMUSIC_VOICE, MIXER_CHANNEL_MSXMUSIC_DRUM, false, ym2413Sync, ym2413);
-
-    ym2413->ym2413->setSampleRate(AUDIO_SAMPLERATE, oversamplingYM2413);
-    ym2413->ym2413->setVolume(32767 * 9 / 10);
-
-    ym2413->ym2413->reset();
 
     ioPortRegister(0x7c, NULL, writeAddr, ym2413);
     ioPortRegister(0x7d, NULL, writeData, ym2413);

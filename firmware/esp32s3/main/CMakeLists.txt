@@ -21,6 +21,7 @@ idf_component_register(
     "bluemsx//OpenMsxYMF262.cpp"
     "bluemsx//OpenMsxYMF278.cpp"
     "bluemsx//Moonsound.cpp"
+    "openmsx//YM2413Burczynski.cc"
   PRIV_REQUIRES
     nvs_flash
     esp_eth
@@ -31,8 +32,11 @@ idf_component_register(
     esp_driver_i2s
   INCLUDE_DIRS
     "."
+    "openmsx"
   EMBED_FILES
     "MOONSOUND.rom"
 )
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error -Wno-error=narrowing -Wno-narrowing -mtext-section-literals)
+
+set(CXX_STANDARD C++23)
