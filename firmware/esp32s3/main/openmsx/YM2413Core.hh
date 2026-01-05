@@ -96,7 +96,11 @@ public:
 	 */
 	virtual void generateChannels(std::span<int32_t*, 2> bufs, uint32_t num) = 0;
 
-protected:
+	/** Returns whether the YM2413 is currently muted.
+	 */
+	virtual bool isMuted() const = 0;
+
+	protected:
 	YM2413Core() = default;
 };
 

@@ -59,7 +59,8 @@ void ym2413Reset(YM_2413* ref)
 
 bool ym2413IsMuted(YM_2413* ref)
 {
-    return false; // for now
+    YM_2413* ym2413 = (YM_2413*)ref;
+    return ym2413->chip->isMuted();
 }
 
 static Int32* ym2413Sync(void* ref, Int32 *buffer, UInt32 count) 

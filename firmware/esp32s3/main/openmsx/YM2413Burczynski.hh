@@ -25,7 +25,7 @@ using FreqIndex = FixedPoint<16>;
 class Slot
 {
 public:
-	Slot();
+	Slot(unsigned &channelActiveBits, unsigned channelActiveMask);
 
 	void resetOperators();
 
@@ -70,6 +70,10 @@ public:
 	/** Enables (true) or disables (false) amplitude modulation.
 	 */
 	void setAmplitudeModulation(bool value);
+
+	/** Sets the channel active mask.
+	 */
+	void setChannelActiveMask(unsigned mask);
 
 	/** Sets the total level: [0..63].
 	 */
@@ -170,11 +174,19 @@ private:
 	// LFO
 	uint8_t AMmask{0}; // LFO Amplitude Modulation enable mask
 	uint8_t vib{0};    // LFO Phase Modulation enable flag (active high)
+
+	unsigned &channelActiveBits;
+	unsigned channelActiveMask;
 };
 
 class Channel
 {
 public:
+	Channel() = delete;
+	Channel(unsigned &channelActiveBits, unsigned channelActiveMask) :
+		mod(channelActiveBits, 0),
+		car(channelActiveBits, channelActiveMask) {}
+
 	/** Calculate the value of the current sample produced by this channel.
 	 */
 	[[nodiscard]] int calcOutput(unsigned eg_cnt, unsigned lfo_pm, unsigned lfo_am, int fm);
@@ -230,6 +242,7 @@ public:
 	void pokeReg(uint8_t reg, uint8_t value) override;
 	[[nodiscard]] uint8_t peekReg(uint8_t reg) const override;
 	void generateChannels(std::span<int32_t*, 2> bufs, uint32_t num) override;
+	bool isMuted() const override;
 
 private:
 	void writeReg(uint8_t reg, uint8_t value);
@@ -253,21 +266,23 @@ private:
 private:
 	/** OPLL chips have 9 channels. */
 	std::array<Channel, 9> channels;
+	unsigned channelActiveBits;
 
 	/** Global envelope generator counter. */
-	unsigned eg_cnt{0};
-	unsigned eg_timer{0}; // rate adjustment
+	unsigned eg_cnt;
+	unsigned eg_timer; // rate adjustment
 
 	/** Random generator for noise: 23 bit shift register. */
-	int noise_rng{0};
+	int noise_rng;
 
 	/** Number of samples the output was completely silent. */
 	unsigned idleSamples;
+	bool muted;
 
 	using LFOPMIndex = FixedPoint<10>;
-	unsigned lfo_am_cnt{0};
-	unsigned lfo_am_timer{0}; // rate adjustment
-	LFOPMIndex lfo_pm_cnt{0};
+	unsigned lfo_am_cnt;
+	unsigned lfo_am_timer; // rate adjustment
+	LFOPMIndex lfo_pm_cnt;
 
 	/** Instrument settings:
 	 *  0     - user instrument

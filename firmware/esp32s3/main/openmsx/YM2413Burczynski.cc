@@ -470,6 +470,8 @@ inline int Slot::calc_envelope(const Channel& channel, unsigned eg_cnt, bool car
 				egOut += eg_sel_rr[(eg_cnt >> eg_sh_rr) & 7];
 				if (egOut >= MAX_ATT_INDEX) {
 					egOut = MAX_ATT_INDEX;
+					setEnvelopeState(EG_OFF);
+					channelActiveBits &= ~channelActiveMask;
 				}
 			}
 			// else do nothing in sustain phase
@@ -489,6 +491,7 @@ inline int Slot::calc_envelope(const Channel& channel, unsigned eg_cnt, bool car
 				if (egOut >= MAX_ATT_INDEX) {
 					egOut = MAX_ATT_INDEX;
 					setEnvelopeState(EG_OFF);
+					channelActiveBits &= ~channelActiveMask;
 				}
 			}
 		}
@@ -662,10 +665,12 @@ static constexpr int genPhaseCymbal(int phaseM7, int phaseC8)
 }
 
 
-Slot::Slot()
+Slot::Slot(unsigned &channelActiveBits, unsigned channelActiveMask)
 	: waveTable(sinTab[0])
 	, eg_sel_dp(eg_inc[0]), eg_sel_ar(eg_inc[0]), eg_sel_dr(eg_inc[0])
 	, eg_sel_rr(eg_inc[0]), eg_sel_rs(eg_inc[0])
+	, channelActiveBits(channelActiveBits)
+	, channelActiveMask(channelActiveMask)
 {
 	setEnvelopeState(EG_OFF);
 }
@@ -675,6 +680,7 @@ void Slot::setKeyOn(KeyPart part)
 	if (!key) {
 		// do NOT restart Phase Generator (verified on real YM2413)
 		setEnvelopeState(EG_DUMP);
+		channelActiveBits |= channelActiveMask;
 	}
 	key |= part;
 }
@@ -731,6 +737,14 @@ void Slot::setVibrato(bool value)
 void Slot::setAmplitudeModulation(bool value)
 {
 	AMmask = value ? ~0 : 0;
+}
+
+void Slot::setChannelActiveMask(unsigned mask)
+{
+	if (!mask && channelActiveMask) {
+		channelActiveBits &= ~channelActiveMask;
+	}
+	channelActiveMask = mask;
 }
 
 void Slot::setTotalLevel(const Channel& channel, uint8_t value)
@@ -926,7 +940,10 @@ void Channel::updateInstrument(std::span<const uint8_t, 8> inst)
 	}
 }
 
-YM2413::YM2413()
+YM2413::YM2413() : channels{
+	Channel(channelActiveBits, 1<<0), Channel(channelActiveBits, 1<<1), Channel(channelActiveBits, 1<<2),
+	Channel(channelActiveBits, 1<<3), Channel(channelActiveBits, 1<<4), Channel(channelActiveBits, 1<<5),
+	Channel(channelActiveBits, 1<<6), Channel(channelActiveBits, 1<<7), Channel(channelActiveBits, 1<<8) }
 {
 	if (false) {
 		for (const auto& e : tlTab) std::cout << e << '\n';
@@ -970,9 +987,11 @@ void YM2413::setRhythmFlags(uint8_t old)
 			// High hat and snare drum.
 			ch7.updateInstrument(inst_tab[17]);
 			ch7.mod.setTotalLevel(ch7, uint8_t((reg[0x37] >> 4) << 2)); // High hat
+			ch7.mod.setChannelActiveMask(1 << (7 + 9));
 			// Tom-tom and top cymbal.
 			ch8.updateInstrument(inst_tab[18]);
 			ch8.mod.setTotalLevel(ch8, uint8_t((reg[0x38] >> 4) << 2)); // Tom-tom
+			ch8.mod.setChannelActiveMask(1 << (8 + 9));
 		} else { // ON -> OFF
 			ch6.updateInstrument(inst_tab[reg[0x36] >> 4]);
 			ch7.updateInstrument(inst_tab[reg[0x37] >> 4]);
@@ -981,10 +1000,12 @@ void YM2413::setRhythmFlags(uint8_t old)
 			ch6.mod.setKeyOff(Slot::KEY_RHYTHM);
 			ch6.car.setKeyOff(Slot::KEY_RHYTHM);
 			// HH key off
+			ch7.mod.setChannelActiveMask(0);
 			ch7.mod.setKeyOff(Slot::KEY_RHYTHM);
 			// SD key off
 			ch7.car.setKeyOff(Slot::KEY_RHYTHM);
 			// TOM key off
+			ch8.mod.setChannelActiveMask(0);
 			ch8.mod.setKeyOff(Slot::KEY_RHYTHM);
 			// TOP-CY off
 			ch8.car.setKeyOff(Slot::KEY_RHYTHM);
@@ -1007,9 +1028,15 @@ void YM2413::setRhythmFlags(uint8_t old)
 
 void YM2413::reset()
 {
-	eg_cnt    = 0;
+	eg_cnt = 0;
+	eg_timer = 0;
 	noise_rng = 1;    // noise shift register
+	lfo_am_cnt = 0;
+	lfo_am_timer = 0;
+	lfo_pm_cnt = LFOPMIndex(0);
 	idleSamples = 0;
+	channelActiveBits = 0;
+	muted = true;
 
 	// setup instruments table
 	inst_tab = table;
@@ -1042,36 +1069,20 @@ Channel& YM2413::getChannelForReg(uint8_t r)
 	return channels[chan];
 }
 
+bool YM2413::isMuted() const
+{
+	return muted;
+}
+
 void YM2413::generateChannels(std::span<int32_t*, 2> bufs, uint32_t num)
 {
-	// TODO make channelActiveBits a member and
-	//      keep it up-to-date all the time
-
+	// channelActiveBits layout:
 	// bits 0-8  -> ch[0-8].car
 	// bits 9-17 -> ch[0-8].mod (only ch7 and ch8 used)
-	unsigned channelActiveBits = 0;
-
-	for (auto ch : xrange(isRhythm() ? 6 : 9)) {
-		if (channels[ch].car.isActive()) {
-			channelActiveBits |= 1 << ch;
-		}
-	}
-	if (isRhythm()) {
-		for (auto ch : xrange(6, 9)) {
-			if (channels[ch].car.isActive()) {
-				channelActiveBits |= 1 << ch;
-			}
-		}
-		if (channels[7].mod.isActive()) {
-			channelActiveBits |= 1 << (7 + 9);
-		}
-		if (channels[8].mod.isActive()) {
-			channelActiveBits |= 1 << (8 + 9);
-		}
-	}
 
 	if (channelActiveBits) {
 		idleSamples = 0;
+		muted = false;
 	} else {
 		if (idleSamples > (CLOCK_FREQ / (72 * 5))) {
 			// Optimization:
@@ -1081,6 +1092,7 @@ void YM2413::generateChannels(std::span<int32_t*, 2> bufs, uint32_t num)
 			// Alternative:
 			//   implement an efficient advance(n) method
 			ranges::fill(bufs, nullptr);
+			muted = true;
 			return;
 		}
 		idleSamples += num;
