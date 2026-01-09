@@ -36,21 +36,17 @@ static i2s_chan_handle_t rx_handle;
 static audiodev_handle_t audiodev;
 static fpga_handle_t fpga;
 
-static uint32_t i2s_read_input_callback(void* arg, int16_t* buffer, uint32_t count)
+static void i2s_read_input_callback(void* arg, int16_t* buffer, uint32_t count)
 {
     size_t bytes_done = 0;
-
     esp_err_t ret = i2s_channel_read(rx_handle, buffer, count * sizeof(int16_t), &bytes_done, 0);
     if (ret != ESP_OK && ret != ESP_ERR_TIMEOUT) {
         ESP_LOGE(TAG, "i2s read failed");
-        return 0;
     }
     if (bytes_done != count * sizeof(int16_t)) {
         ESP_LOGW(TAG, "i2s read mismatch: requested %d bytes, got %d bytes", count * sizeof(int16_t), bytes_done);
         memset(buffer + bytes_done, 0, count * sizeof(int16_t) - bytes_done);
     }
-
-    return count;
 }
 
 static uint32_t i2s_write_output_callback(void* arg, int16_t* buffer, uint32_t count)

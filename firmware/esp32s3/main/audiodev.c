@@ -136,39 +136,11 @@ static Int32* fpga_input_sync(void* ref, Int32 *buffer, UInt32 count)
 {
     audiodev_handle_t audiodev = (audiodev_handle_t)ref;
 
-    (void)audiodev->read_input_callback(audiodev->fpga_handle, audiodev->inputBuffer, count * 2);
+    audiodev->read_input_callback(audiodev->fpga_handle, audiodev->inputBuffer, count * 2);
+
     for (UInt32 i = 0; i < count * 2; i++) {
         buffer[i] = audiodev->inputBuffer[i];
     }
-
-#if 1
-    static Int16 minsampl = 0;
-    static Int16 maxsampl = 0;
-    static Int16 minsampr = 0;
-    static Int16 maxsampr = 0;
-    bool report = false;
-    for (UInt32 i = 0; i < count * 2; i+=2) {
-        if (buffer[i] < minsampl) {
-            minsampl = buffer[i];
-            report = true;
-        }
-        if (buffer[i] > maxsampl) {
-            maxsampl = buffer[i];
-            report = true;
-        }
-        if (buffer[i+1] < minsampr) {
-            minsampr = buffer[i+1];
-            report = true;
-        }
-        if (buffer[i+1] > maxsampr) {
-            maxsampr = buffer[i+1];
-            report = true;
-        }
-    }
-    if (report) {
-        ESP_LOGI(TAG, "Input sample range: left: %d .. %d, right %d .. %d", minsampl, maxsampl, minsampr, maxsampr);
-    }
-#endif
     return buffer;
 }
 
