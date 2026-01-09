@@ -35,22 +35,13 @@ entity fmpac is
     mes_fmpac_readdata       : out std_logic_vector(7 downto 0);
     mes_fmpac_readdatavalid  : out std_logic;
     mes_fmpac_waitrequest    : out std_logic;
-    ios_fmpac_write          : in std_logic;
-    ios_fmpac_address        : in std_logic_vector(0 downto 0);
-    ios_fmpac_writedata      : in std_logic_vector(7 downto 0);
-    ios_fmpac_waitrequest    : out std_logic;
 
     -- rom master port
     rom_fmpac_read           : out std_logic;
     rom_fmpac_address        : out std_logic_vector(13 downto 0);
     rom_fmpac_readdata       : in std_logic_vector(7 downto 0);
     rom_fmpac_readdatavalid  : in std_logic;
-    rom_fmpac_waitrequest    : in std_logic;
-
-    -- Audio output
-    BCMO    : out std_logic_vector(15 downto 0);
-    BCRO    : out std_logic_vector(15 downto 0);
-    SDO     : out std_logic
+    rom_fmpac_waitrequest    : in std_logic
 );
 end fmpac;
 
@@ -62,11 +53,6 @@ architecture RTL of fmpac is
 
   signal mes_fmpac_readdatavalid_r, mes_fmpac_readdatavalid_x : std_logic;
   signal mes_fmpac_readdata_r, mes_fmpac_readdata_x           : std_logic_vector(7 downto 0);
-
-  signal pYM2413_CS : std_logic;
-  signal pYM2413_A  : std_logic;
-  signal pYM2413_D  : std_logic_vector(7 downto 0);
-  signal ym2413_waitrequest_i : std_logic;
 
   -- FM Pack
   signal R7FF6b0 : std_logic;
@@ -85,27 +71,6 @@ architecture RTL of fmpac is
 begin
 
   --------------------------------------------------------
-  -- OPLL
-  --------------------------------------------------------
-
-  opll_i : entity work.opll(rtl)
-  port map (
-    XIN  => clock,
-    XOUT => open,
-    XENA => clkena_3m58,
-    D    => pYM2413_D,
-    A    => pYM2413_A,
-    CS_n => not pYM2413_CS,
-    WE_n => '0',
-    IC_n => not slot_reset,
-    MO   => open,
-    RO   => open,
-    BCMO => BCMO,
-    BCRO => BCRO,
-    SDO  => SDO
-  );
-
-  --------------------------------------------------------
   -- Address decoding
   --------------------------------------------------------
   --  7FF4h: write YM-2413 register port (write only)
@@ -115,14 +80,6 @@ begin
   --  4Dh to 5FFEh and 69h to 5FFFh. Now 8kB SRAM is active in 4000h - 5FFFh 
 
   CsRAM8k <= '1' when mes_fmpac_address(13) = '0' and R5FFE = x"4D" and R5FFF = x"69" else '0';
-
-  pYM2413_CS <= '1' when ios_fmpac_write = '1' else
-                '1' when (mes_fmpac_write = '1' and mes_fmpac_address(13 downto 1) = "11"&"1111"&"1111"&"010" and R7FF6b0 = '1') else '0';
-
-  pYM2413_A <= ios_fmpac_address(0) when ios_fmpac_write = '1' else mes_fmpac_address(0);
-  pYM2413_D <= ios_fmpac_writedata when ios_fmpac_write = '1' else mes_fmpac_writedata;
-
-  ym2413_waitrequest_i <= '1' when ios_fmpac_write = '1' and pYM2413_CS = '1' and clkena_3m58 = '0' else '0';
 
   --------------------------------------------------------
   -- RAM 8k
@@ -159,8 +116,6 @@ begin
   -- Register write
   --------------------------------------------------------
 
-  ios_fmpac_waitrequest <= ym2413_waitrequest_i;
-
   process(clock, slot_reset)
   begin
     if rising_edge(clock) then
@@ -194,7 +149,7 @@ begin
 
   rom_fmpac_address <= mes_fmpac_address;
 
-  mes_fmpac_waitrequest <= read_waitrequest_i or ym2413_waitrequest_i;
+  mes_fmpac_waitrequest <= read_waitrequest_i;
   mes_fmpac_readdatavalid <= mes_fmpac_readdatavalid_r;
   mes_fmpac_readdata <= mes_fmpac_readdata_r;
 

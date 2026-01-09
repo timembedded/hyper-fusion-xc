@@ -30,7 +30,7 @@ entity scc_wave is
     SccWavDatVld  : OUT std_logic;
     SccWavDatOut  : OUT std_logic_vector(7 downto 0);
 
-    SccAmp        : OUT std_logic_vector(10 downto 0)
+    SccAmp        : OUT std_logic_vector(15 downto 0)
  );
 end scc_wave;
 
@@ -84,7 +84,7 @@ architecture RTL of scc_wave is
   signal SccChNum    : integer range 0 to 7;
  
   -- Mixer
-  signal SccMixIn    : std_logic_vector(7 downto 0);
+  signal SccMixIn    : signed(7 downto 0);
   signal SccMixEn    : std_logic;
   signal SccMixRst   : std_logic;
   signal SccMixRst1  : std_logic := '0';
@@ -93,9 +93,9 @@ architecture RTL of scc_wave is
   signal SccMixRun1  : std_logic := '0';
   signal SccMixRun2  : std_logic := '0';
   signal SccMixVol   : unsigned(3 downto 0);
-  signal SccMixWav   : unsigned(10 downto 0);
-  signal SccMixMul   : unsigned(14 downto 0);
-  signal SccMix      : unsigned(14 downto 0);
+  signal SccMixWav   : signed(10 downto 0);
+  signal SccMixMul   : signed(15 downto 0);
+  signal SccMix      : signed(15 downto 0);
 
 begin
 
@@ -331,7 +331,7 @@ begin
     if (slot_reset = '1') then
       SccAmp <= (others => '0');
     elsif (rising_edge(clock)) then
-      SccMixIn <= oWaveDat;
+      SccMixIn <= signed(oWaveDat);
       SccMixRst <= '0';
       SccMixRun <= '0';
       SccMixEn <= '0';
@@ -361,7 +361,7 @@ begin
             SccMixEn <= SccChanSel(4);
             SccMixVol <= SccVolChE;
           when 7  =>
-            SccAmp <= std_logic_vector(SccMix(14 downto 4));
+            SccAmp <= std_logic_vector(SccMix);
           when others =>
         end case;
       end if;
@@ -372,6 +372,7 @@ begin
   -- Mixer
   ----------------------------------------------------------------
   process(clock)
+    variable SccMixAdd   : integer;
   begin
     if (rising_edge(clock)) then
 
@@ -379,22 +380,29 @@ begin
       SccMixRun1 <= SccMixRun;
       SccMixRst1 <= SccMixRst;
       if (SccMixEn = '1') then
-        SccMixWav <= unsigned("000" & unsigned(SccMixIn xor x"80"));
+        SccMixWav <= SccMixIn & "000";
       else
-        SccMixWav <= "000" & x"80";
+        SccMixWav <= (others => '0');
       end if;
 
       -- Clock 2 - Multiply
       SccMixRun2 <= SccMixRun1;
       SccMixRst2 <= SccMixRst1;
-      SccMixMul <= unsigned(SccMixWav) * SccMixVol;
+      SccMixMul <= SccMixWav * signed('0' & SccMixVol);
 
       -- Clock 3 - Add
       if (SccMixRun2 = '1') then
         if (SccMixRst2 = '1') then
           SccMix <= SccMixMul;
         else
-          SccMix <= SccMix + SccMixMul;
+          SccMixAdd := to_integer(SccMix) + to_integer(SccMixMul);
+          if (SccMixAdd > 32657) then
+            SccMix <= to_signed(32657, 16);
+          elsif (SccMixAdd < -32658) then
+            SccMix <= to_signed(-32658, 16);
+          else
+            SccMix <= to_signed(SccMixAdd, 16);
+          end if;
         end if;
       end if;
     end if;

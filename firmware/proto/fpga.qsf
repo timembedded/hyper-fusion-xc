@@ -273,25 +273,7 @@ set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to pIDEDat
 set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING ON
-set_global_assignment -name VHDL_FILE hdl/opll2/VoiceRom.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/VoiceMemory.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/vm2413.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/TemporalMixer.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/SlotCounter.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/SineTable.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/RegisterMemory.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/PhaseMemory.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/PhaseGenerator.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/OutputMemory.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/OutputGenerator.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/Opll.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/Operator.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/LinearTable.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/FeedbackMemory.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/EnvelopeMemory.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/EnvelopeGenerator.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/Controller.vhd
-set_global_assignment -name VHDL_FILE hdl/opll2/AttackTable.vhd
+set_global_assignment -name OPTIMIZE_HOLD_TIMING "ALL PATHS"
 set_global_assignment -name VHDL_FILE ip/pll/MPLL2.vhd
 set_global_assignment -name VHDL_FILE ip/pll/MPLL1.vhd
 set_global_assignment -name VHDL_FILE hdl/common/input_filter.vhd
@@ -319,6 +301,6 @@ set_global_assignment -name VHDL_FILE hdl/megasd.vhd
 set_global_assignment -name VHDL_FILE hdl/ipc/ipc_pkg.vhd
 set_global_assignment -name VHDL_FILE hdl/ipc/spi_ipc.vhd
 set_global_assignment -name VHDL_FILE hdl/ipc/audiodev.vhd
-set_global_assignment -name OPTIMIZE_HOLD_TIMING "ALL PATHS"
 set_global_assignment -name VHDL_FILE hdl/audio/i2s_decoder.vhd
+set_global_assignment -name VHDL_FILE hdl/keyclick.vhd
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

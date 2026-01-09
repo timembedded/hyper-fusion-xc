@@ -34,9 +34,6 @@
 
 #include "dac.h"
 
-#define CONFIG_I2S_MODE_MUSIC   1   // 1 to play audio
-#define CONFIG_I2S_MODE_ECHO    0   // 1 to enable echo mode
-
 /* Example configurations */
 #define I2S_RECV_BUF_SIZE   (2400)
 #define I2S_SAMPLE_RATE     (44100)
@@ -52,15 +49,6 @@
 #define I2S_DI_IO       9
 
 static const char *TAG = "i2s_dac";
-static const char err_reason[][30] = {"input param is invalid",
-                                      "operation timeout"
-                                     };
-
-/* Import music file as buffer */
-#if CONFIG_I2S_MODE_MUSIC
-extern const uint8_t music_pcm_start[] asm("_binary_canon_pcm_start");
-extern const uint8_t music_pcm_end[]   asm("_binary_canon_pcm_end");
-#endif
 
 static esp_err_t dac_codec_init(i2s_chan_handle_t tx_handle, i2s_chan_handle_t rx_handle)
 {
@@ -135,51 +123,6 @@ static esp_err_t i2s_driver_init(i2s_chan_handle_t *tx_handle, i2s_chan_handle_t
     ESP_ERROR_CHECK(i2s_channel_enable(*tx_handle));
     ESP_ERROR_CHECK(i2s_channel_enable(*rx_handle));
     return ESP_OK;
-}
-
-#if CONFIG_I2S_MODE_MUSIC
-static void i2s_music(void *args)
-{
-    i2s_chan_handle_t tx_handle = args;
-    esp_err_t ret = ESP_OK;
-    size_t bytes_write = 0;
-    uint8_t *data_ptr = (uint8_t *)music_pcm_start;
-
-    /* (Optional) Disable TX channel and preload the data before enabling the TX channel,
-     * so that the valid data can be transmitted immediately */
-    ESP_ERROR_CHECK(i2s_channel_disable(tx_handle));
-    ESP_ERROR_CHECK(i2s_channel_preload_data(tx_handle, data_ptr, music_pcm_end - data_ptr, &bytes_write));
-    data_ptr += bytes_write;  // Move forward the data pointer
-
-    /* Enable the TX channel */
-    ESP_ERROR_CHECK(i2s_channel_enable(tx_handle));
-
-    /* Write music to earphone */
-    ret = i2s_channel_write(tx_handle, data_ptr, music_pcm_end - data_ptr, &bytes_write, portMAX_DELAY);
-    if (ret != ESP_OK) {
-        /* Since we set timeout to 'portMAX_DELAY' in 'i2s_channel_write'
-            so you won't reach here unless you set other timeout value,
-            if timeout detected, it means write operation failed. */
-        ESP_LOGE(TAG, "[music] i2s write failed, %s", err_reason[ret == ESP_ERR_TIMEOUT]);
-        abort();
-    }
-    if (bytes_write > 0) {
-        ESP_LOGI(TAG, "[music] i2s music played, %d bytes are written.", bytes_write);
-    } else {
-        ESP_LOGE(TAG, "[music] i2s music play failed.");
-        abort();
-    }
-
-    vTaskDelete(NULL);
-}
-#endif
-
-void i2s_play_music(i2s_chan_handle_t tx_handle)
-{
-#if CONFIG_I2S_MODE_MUSIC
-    /* Play a piece of music in music mode */
-    xTaskCreate(i2s_music, "i2s_music", 4096, tx_handle, 5, NULL);
-#endif
 }
 
 void i2s_init(i2s_chan_handle_t *tx_handle, i2s_chan_handle_t *rx_handle)

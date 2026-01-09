@@ -58,7 +58,7 @@ entity scc is
     SccPlus_B2Ram         : out std_logic;
 
     -- Audio output
-    SccAmp                : out std_logic_vector(10 downto 0)
+    SccAmp                : out std_logic_vector(15 downto 0)
   );
 end scc;
 

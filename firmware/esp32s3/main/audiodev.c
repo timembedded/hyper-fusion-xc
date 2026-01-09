@@ -45,7 +45,9 @@ static const char TAG[] = "audiodev";
 /// Audio devices data
 struct audiodev_t {
     fpga_handle_t fpga_handle;
-    write_samples_callback_t write_samples_callback;
+    read_input_callback_t read_input_callback;
+    write_output_callback_t write_output_callback;
+    int16_t inputBuffer[AUDIO_STEREO_BUFFER_SIZE];
     SemaphoreHandle_t mixer_sem;
     emutimer_handle_t timer_mixer;
     bool mixer_reset;
@@ -80,13 +82,14 @@ static void irq_clear_callback(void *ref)
     fpga_irq_reset((fpga_handle_t)ref);
 }
 
-audiodev_handle_t audiodev_create(fpga_handle_t fpga_handle, write_samples_callback_t callback)
+audiodev_handle_t audiodev_create(fpga_handle_t fpga_handle, read_input_callback_t read_callback, write_output_callback_t write_callback)
 {
     // Allocate data
     audiodev_t *audiodev = (audiodev_t *)calloc(1, sizeof(audiodev_t));
 
     audiodev->fpga_handle = fpga_handle;
-    audiodev->write_samples_callback = callback;
+    audiodev->read_input_callback = read_callback;
+    audiodev->write_output_callback = write_callback;
 
     // Setup 'Board' IRQ callbacks
     boardSetIrqCallbacks(irq_set_callback, irq_clear_callback, fpga_handle);
@@ -123,10 +126,50 @@ static uint32_t IRAM_ATTR mixer_get_samples_callback(void *ref)
     return count;
 }
 
-static Int32 IRAM_ATTR mixer_write_samples_callback(void* arg, Int16* buffer, UInt32 count)
+static Int32 IRAM_ATTR mixer_write_output_callback(void* arg, Int16* buffer, UInt32 count)
 {
     audiodev_handle_t audiodev = (audiodev_handle_t)arg;
-    return audiodev->write_samples_callback(arg, buffer, count);
+    return audiodev->write_output_callback(arg, buffer, count);
+}
+
+static Int32* fpga_input_sync(void* ref, Int32 *buffer, UInt32 count) 
+{
+    audiodev_handle_t audiodev = (audiodev_handle_t)ref;
+
+    (void)audiodev->read_input_callback(audiodev->fpga_handle, audiodev->inputBuffer, count * 2);
+    for (UInt32 i = 0; i < count * 2; i++) {
+        buffer[i] = audiodev->inputBuffer[i];
+    }
+
+#if 1
+    static Int16 minsampl = 0;
+    static Int16 maxsampl = 0;
+    static Int16 minsampr = 0;
+    static Int16 maxsampr = 0;
+    bool report = false;
+    for (UInt32 i = 0; i < count * 2; i+=2) {
+        if (buffer[i] < minsampl) {
+            minsampl = buffer[i];
+            report = true;
+        }
+        if (buffer[i] > maxsampl) {
+            maxsampl = buffer[i];
+            report = true;
+        }
+        if (buffer[i+1] < minsampr) {
+            minsampr = buffer[i+1];
+            report = true;
+        }
+        if (buffer[i+1] > maxsampr) {
+            maxsampr = buffer[i+1];
+            report = true;
+        }
+    }
+    if (report) {
+        ESP_LOGI(TAG, "Input sample range: left: %d .. %d, right %d .. %d", minsampl, maxsampl, minsampr, maxsampr);
+    }
+#endif
+    return buffer;
 }
 
 void audiodev_stop(audiodev_handle_t audiodev)
@@ -187,10 +230,17 @@ void audiodev_start(audiodev_handle_t audiodev)
     audiodev->msxaudio = msxaudioCreate(audiodev->mixer);
     audiodev->moonsound = moonsoundCreate(audiodev->mixer, (uint8_t*)moonsound_rom_start, ((uint8_t*)moonsound_rom_end - (uint8_t*)moonsound_rom_start), 1024);
 
-    // Configure mixer
-    mixerSetWriteCallback(audiodev->mixer, mixer_write_samples_callback, audiodev);
+    // Connect I2S input from FPGA to mixer
+    mixerRegisterChannel(audiodev->mixer, 0, MIXER_CHANNEL_KEYCLICK, MIXER_CHANNEL_SCC, false, fpga_input_sync, audiodev);
+
+    // Basic mixer configuration
+    mixerSetWriteCallback(audiodev->mixer, mixer_write_output_callback, audiodev);
     mixerSetMasterVolume(audiodev->mixer, 100);
     mixerEnableMaster(audiodev->mixer, 1);
+
+    // Set volumes
+    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_KEYCLICK, 100);
+    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_SCC, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_PSG, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_DRUM, 100);
@@ -198,6 +248,10 @@ void audiodev_start(audiodev_handle_t audiodev)
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_DRUM, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_YMF262, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_YMF278, 100);
+
+    // Set panning
+    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_KEYCLICK, 50);
+    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_SCC, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_PSG, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_DRUM, 50);
@@ -205,6 +259,10 @@ void audiodev_start(audiodev_handle_t audiodev)
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_DRUM, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_YMF262, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_YMF278, 50);
+
+    // Enable all channels
+    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_KEYCLICK, 1);
+    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_SCC, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_PSG, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_DRUM, 1);
@@ -218,7 +276,7 @@ void audiodev_start(audiodev_handle_t audiodev)
     int written = 0;
     memset(buffer, 0, sizeof(buffer));
     for(int i = 0; i < 8; i++) {
-        written += mixer_write_samples_callback(audiodev, buffer, sizeof(buffer) / sizeof(Int16));
+        written += mixer_write_output_callback(audiodev, buffer, sizeof(buffer) / sizeof(Int16));
     }
     ESP_LOGI(TAG, "Pre-filled %d samples", written);
 

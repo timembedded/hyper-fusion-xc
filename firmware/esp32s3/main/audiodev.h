@@ -34,9 +34,10 @@ extern "C" {
 struct audiodev_t;
 typedef struct audiodev_t* audiodev_handle_t;
 
-typedef uint32_t (*write_samples_callback_t)(void* arg, int16_t* buffer, uint32_t count);
+typedef uint32_t (*write_output_callback_t)(void* arg, int16_t* buffer, uint32_t count);
+typedef uint32_t (*read_input_callback_t)(void* arg, int16_t* buffer, uint32_t count);
 
-audiodev_handle_t audiodev_create(fpga_handle_t fpga_handle, write_samples_callback_t callback);
+audiodev_handle_t audiodev_create(fpga_handle_t fpga_handle, read_input_callback_t read_callback, write_output_callback_t write_callback);
 void audiodev_destroy(audiodev_handle_t timer);
 
 void audiodev_stop(audiodev_handle_t fpga_handle);

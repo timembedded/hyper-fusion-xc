@@ -277,7 +277,7 @@ architecture rtl of top is
   signal ram_mapper_readdatavalid_i  : std_logic;
   signal ram_mapper_waitrequest_i    : std_logic;
 
-  -- Avalon bus: FM-Pack
+  -- Avalon bus: FM-Pack (only the ROM)
   signal mem_fmpac_read_i           : std_logic;
   signal mem_fmpac_write_i          : std_logic;
   signal mem_fmpac_address_i        : std_logic_vector(13 downto 0);
@@ -285,17 +285,6 @@ architecture rtl of top is
   signal mem_fmpac_readdata_i       : std_logic_vector(7 downto 0);
   signal mem_fmpac_readdatavalid_i  : std_logic;
   signal mem_fmpac_waitrequest_i    : std_logic;
-  signal iom_fmpac_write_i          : std_logic;
-  signal iom_fmpac_address_i        : std_logic_vector(0 downto 0);
-  signal iom_fmpac_writedata_i      : std_logic_vector(7 downto 0);
-  signal iom_fmpac_waitrequest_i    : std_logic;
-  -- FM-Pac
-  signal BCMO       : std_logic_vector(15 downto 0);
-  signal BCRO       : std_logic_vector(15 downto 0);
-  signal MFL        : std_logic_vector(15 downto 0);
-  signal MFR        : std_logic_vector(15 downto 0);
-  signal MCL        : std_logic_vector(15 downto 0);
-  signal MCR        : std_logic_vector(15 downto 0);
   -- ROM
   signal rom_fmpac_read_i           : std_logic;
   signal rom_fmpac_address_i        : std_logic_vector(13 downto 0);
@@ -320,7 +309,7 @@ architecture rtl of top is
   signal mem_mega_readdatavalid_i   : std_logic;
   signal mem_mega_waitrequest_i     : std_logic;
   -- Audio
-  signal scc_amp_i                  : std_logic_vector(10 downto 0);
+  signal scc_amp_i                  : std_logic_vector(15 downto 0);
 
   -- Avalon bus: MegaSD
   signal mem_sd_read_i              : std_logic;
@@ -350,15 +339,16 @@ architecture rtl of top is
   signal audio_ack_i                : std_logic;
   signal audio_output_left_i        : std_logic_vector(15 downto 0);
   signal audio_output_right_i       : std_logic_vector(15 downto 0);
+  signal audio_keyclick_i           : std_logic_vector(15 downto 0);
 
   -- I2S
   signal i2s_sclk_i                 : std_logic;
   signal i2s_bclk_i                 : std_logic;
   signal i2s_lrclk_i                : std_logic;
-  signal i2s_data_i                 : std_logic;
+  signal i2s_din_i                  : std_logic;
+  signal i2s_dout_i                 : std_logic;
   signal audio_strobe_i             : std_logic;
   signal audio_sample_i             : std_logic_vector(15 downto 0);
-  signal audio_data_r               : std_logic_vector(15 downto 0);
 
   -- Debug
   signal count                      : unsigned(1 downto 0) := "00";
@@ -553,42 +543,6 @@ begin
   );
 
   --------------------------------------------------------------------
-  -- I2S decoder
-  --------------------------------------------------------------------
-
-  i_i2s_decoder : entity work.i2s_decoder(rtl)
-  port map
-  (
-    -- System clock
-    clock               => sysclk,
-    reset               => slot_reset_i,
-
-    -- i2s interface
-    i2s_bclk            => i2s_bclk_i,
-    i2s_lrclk           => i2s_lrclk_i,
-    i2s_data            => i2s_data_i,
-
-    -- Decoded output
-    audio_strobe_left   => audio_strobe_i,
-    audio_strobe_right  => open,
-    audio_sample_left   => audio_sample_i,
-    audio_sample_right  => open
-  );
-
-  process(sysclk)
-  begin
-    if rising_edge(sysclk) then
-      if (slot_reset_i = '1') then
-        audio_data_r <= (others => '0');
-      else
-        if (audio_strobe_i = '1') then
-          audio_data_r <= audio_sample_i;
-        end if;
-      end if;
-    end if;
-  end process;
-
-  --------------------------------------------------------------------
   -- ESP32 interface
   --------------------------------------------------------------------
 
@@ -603,7 +557,7 @@ begin
     irq                => slot_irq_i,
 
     -- Audio data
-    audio_data         => audio_data_r,
+    audio_data         => audio_sample_i,
 
     -- io slave port   =>
     ios_read           => iom_esp_read_i,
@@ -832,10 +786,6 @@ begin
     mem_fmpac_readdata       => mem_fmpac_readdata_i,
     mem_fmpac_readdatavalid  => mem_fmpac_readdatavalid_i,
     mem_fmpac_waitrequest    => mem_fmpac_waitrequest_i,
-    iom_fmpac_write          => iom_fmpac_write_i,
-    iom_fmpac_address        => iom_fmpac_address_i,
-    iom_fmpac_writedata      => iom_fmpac_writedata_i,
-    iom_fmpac_waitrequest    => iom_fmpac_waitrequest_i,
 
     -- SCC
     mem_scc_read             => mem_scc_read_i,
@@ -913,22 +863,13 @@ begin
     mes_fmpac_readdata       => mem_fmpac_readdata_i,
     mes_fmpac_readdatavalid  => mem_fmpac_readdatavalid_i,
     mes_fmpac_waitrequest    => mem_fmpac_waitrequest_i,
-    ios_fmpac_write          => iom_fmpac_write_i,
-    ios_fmpac_address        => iom_fmpac_address_i,
-    ios_fmpac_writedata      => iom_fmpac_writedata_i,
-    ios_fmpac_waitrequest    => iom_fmpac_waitrequest_i,
 
     -- rom master port
     rom_fmpac_read           => rom_fmpac_read_i,
     rom_fmpac_address        => rom_fmpac_address_i,
     rom_fmpac_readdata       => rom_fmpac_readdata_i,
     rom_fmpac_readdatavalid  => rom_fmpac_readdatavalid_i,
-    rom_fmpac_waitrequest    => rom_fmpac_waitrequest_i,
-
-    -- Audio output
-    BCMO    => BCMO,
-    BCRO    => BCRO,
-    SDO     => open
+    rom_fmpac_waitrequest    => rom_fmpac_waitrequest_i
   );
 
   ----------------------------------------------------------------
@@ -1076,40 +1017,25 @@ begin
     mmc_do  => SD_MISO
   );
 
-  ----------------------------------------------------------------
-  -- Audio Mixer
-  ----------------------------------------------------------------
+  --------------------------------------------------------------------
+  -- 1-bit audio
+  --------------------------------------------------------------------
 
-  VMFL : entity work.sample_volume(rtl)
-  port map(
-    clock => sysclk,
-    sin16 => BCMO,
-    sout16 => MFL,
-    level => LVF
-  );
-  
-  VMFR : entity work.sample_volume(rtl)
-  port map (
-    clock => sysclk,
-    sin16 => BCRO,
-    sout16 => MFR,
-    level => LVF
-  );
+  i_keyclick : entity work.keyclick(rtl)
+  port map
+  (
+    -- clock and reset
+    clock          => sysclk,
+    slot_reset     => slot_reset_i,
+    clkena_3m58    => clkena_3m58_i,
 
-  VMSL : entity work.sample_volume(rtl)
-  port map(
-    clock => sysclk,
-    sin16 => std_logic_vector(signed(MFL) + signed(scc_amp_i & scc_amp_i(10) & scc_amp_i(10) & scc_amp_i(10) & scc_amp_i(10) & scc_amp_i(10))),
-    sout16 => MCL,
-    level => LVF
-  );
-  
-  VMSR : entity work.sample_volume(rtl)
-  port map (
-    clock => sysclk,
-    sin16 => std_logic_vector(signed(MFR) + signed(scc_amp_i & scc_amp_i(10) & scc_amp_i(10) & scc_amp_i(10) & scc_amp_i(10) & scc_amp_i(10))),
-    sout16 => MCR,
-    level => LVF
+    -- io slave port (write-only)
+    ios_write      => iom_esp_write_i,
+    ios_address    => iom_esp_address_i,
+    ios_writedata  => iom_esp_writedata_i,
+
+    -- Output
+    sample_out     => audio_keyclick_i
   );
 
   --------------------------------------------------------------------
@@ -1124,7 +1050,7 @@ begin
     audio_strobe => audio_ack_i,
     tone_enable => beep_i,
     tone_select => '1',
-    audio_input => MCL,
+    audio_input => audio_keyclick_i,
     audio_output => audio_output_left_i
   );
 
@@ -1136,41 +1062,51 @@ begin
     audio_strobe => audio_ack_i,
     tone_enable => beep_i,
     tone_select => '1',
-    audio_input => MCR,
+    audio_input => scc_amp_i,
     audio_output => audio_output_right_i
   );
 
   --------------------------------------------------------------------
-  -- Audio output
+  -- Audio
   --------------------------------------------------------------------
 
-  i_i2s_output : entity work.i2s_output(rtl)
+  i_i2s_decoder : entity work.i2s_decoder(rtl)
   port map
   (
-    clock => sysclk,
-    reset => reset,
-    audio_left => audio_output_left_i,
-    audio_right => audio_output_right_i,
-    audio_ack => audio_ack_i,
-    i2s_mclk => open, --dac_sck,
-    i2s_lrclk => open, --dac_lrck,
-    i2s_sclk => open, --dac_bck,
-    i2s_data => open --dac_din
+    -- System clock
+    clock               => sysclk,
+    reset               => slot_reset_i,
+
+    -- i2s interface
+    i2s_bclk            => i2s_bclk_i,
+    i2s_lrclk           => i2s_lrclk_i,
+    i2s_din             => i2s_din_i,
+    i2s_dout            => i2s_dout_i,
+
+    -- Audio input
+    audio_tx_left       => audio_output_left_i,
+    audio_tx_right      => audio_output_right_i,
+    audio_tx_ack        => audio_ack_i,
+
+    -- Decoded output
+    audio_rx_strobe     => audio_strobe_i,
+    audio_rx_left       => audio_sample_i,
+    audio_rx_right      => open
   );
 
   i2s_sclk_i <= ESP_GPIO18;
   i2s_bclk_i <= ESP_GPIO8;
   i2s_lrclk_i <= ESP_GPIO3;
-  i2s_data_i <= ESP_GPIO46;
+  i2s_din_i <= ESP_GPIO46;
+  ESP_GPIO9 <= i2s_dout_i;
 
   dac_sck <= i2s_sclk_i;
   dac_bck <= i2s_bclk_i;
   dac_lrck <= i2s_lrclk_i;
-  dac_din <= i2s_data_i;
+  dac_din <= i2s_din_i;
 
   adc_scki <= i2s_sclk_i;
   adc_bck <= i2s_bclk_i;
   adc_lrck <= i2s_lrclk_i;
-  ESP_GPIO9 <= adc_dout;
 
 end rtl;

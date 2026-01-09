@@ -94,10 +94,6 @@ entity address_decoding is
     mem_fmpac_readdata        : in std_logic_vector(7 downto 0);
     mem_fmpac_readdatavalid   : in std_logic;
     mem_fmpac_waitrequest     : in std_logic;
-    iom_fmpac_write           : out std_logic;
-    iom_fmpac_address         : out std_logic_vector(0 downto 0);
-    iom_fmpac_writedata       : out std_logic_vector(7 downto 0);
-    iom_fmpac_waitrequest     : in std_logic;
 
     -- SCC
     mem_scc_read              : out std_logic;
@@ -134,7 +130,7 @@ architecture rtl of address_decoding is
 
   -- Chip select
   type mem_cs_t is (MEM_CS_NONE, MEM_CS_EXTREG, MEM_CS_MAPPER, MEM_CS_SD, MEM_CS_FMPAC, MEM_CS_SCC);
-  type iom_cs_t is (IOM_CS_NONE, IOM_CS_MAPPER, IOM_CS_FMPAC, IOM_CS_MEGA, IOM_CS_TESTREG, IOM_CS_WAITREG, IOM_CS_DELAYREG);
+  type iom_cs_t is (IOM_CS_NONE, IOM_CS_MAPPER, IOM_CS_MEGA, IOM_CS_TESTREG, IOM_CS_WAITREG, IOM_CS_DELAYREG);
   signal mem_read_x, mem_read_r                   : std_logic;
   signal mem_cs_i, mem_cs_read_x, mem_cs_read_r   : mem_cs_t;
   signal iom_cs_i, iom_cs_read_x, iom_cs_read_r   : iom_cs_t;
@@ -150,7 +146,6 @@ architecture rtl of address_decoding is
 
   signal mem_fmpac_read_i                         : std_logic;
   signal mem_fmpac_write_i                        : std_logic;
-  signal iom_fmpac_write_i                        : std_logic;
   signal iom_mega_read_i                          : std_logic;
   signal iom_mega_write_i                         : std_logic;
   signal iom_testreg_write_i                      : std_logic;
@@ -217,9 +212,6 @@ begin
   mem_fmpac_write       <= mem_fmpac_write_i;
   mem_fmpac_address     <= mes_address(13 downto 0);
   mem_fmpac_writedata   <= mes_writedata;
-  iom_fmpac_write       <= iom_fmpac_write_i;
-  iom_fmpac_address     <= ios_address(0 downto 0);
-  iom_fmpac_writedata   <= ios_writedata;
 
   -- SCC
   mem_scc_read          <= mem_scc_read_i;
@@ -482,8 +474,6 @@ begin
       when IOM_CS_MAPPER =>
         iom_mapper_read_i <= ios_read;
         ios_waitrequest_i <= iom_mapper_waitrequest;
-      when IOM_CS_FMPAC =>
-        ios_waitrequest_i <= iom_fmpac_waitrequest;
       when IOM_CS_MEGA =>
         iom_mega_read_i <= ios_read;
         ios_waitrequest_i <= iom_mega_waitrequest;
@@ -544,7 +534,6 @@ begin
   begin
     -- write signals
     iom_mapper_write_i <= '0';
-    iom_fmpac_write_i <= '0';
     iom_mega_write_i <= '0';
     iom_testreg_write_i <= '0';
     iom_esp_write_i <= '0';
@@ -553,9 +542,6 @@ begin
     if (ios_write = '1' and iom_cs_i = IOM_CS_MAPPER) then
       -- 0xFC - 0xFF
       iom_mapper_write_i <= '1';
-    elsif (ios_write = '1' and iom_cs_i = IOM_CS_FMPAC) then
-      -- 0x7C - 0x7D
-      iom_fmpac_write_i <= '1';
     elsif (ios_write = '1' and iom_cs_i = IOM_CS_MEGA) then
       -- 0xF0 - 0xF3
       iom_mega_write_i <= '1';

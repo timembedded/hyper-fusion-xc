@@ -36,18 +36,34 @@ static i2s_chan_handle_t rx_handle;
 static audiodev_handle_t audiodev;
 static fpga_handle_t fpga;
 
-static uint32_t i2s_write_samples_callback(void* arg, int16_t* buffer, uint32_t count)
+static uint32_t i2s_read_input_callback(void* arg, int16_t* buffer, uint32_t count)
 {
-    size_t bytes_write = 0;
-    esp_err_t ret;
+    size_t bytes_done = 0;
 
-    ret = i2s_channel_write(tx_handle, buffer, count * sizeof(int16_t), &bytes_write, 0);
+    esp_err_t ret = i2s_channel_read(rx_handle, buffer, count * sizeof(int16_t), &bytes_done, 0);
     if (ret != ESP_OK && ret != ESP_ERR_TIMEOUT) {
-        ESP_LOGE(TAG, "i2s write failed");
-        abort();
+        ESP_LOGE(TAG, "i2s read failed");
+        return 0;
+    }
+    if (bytes_done != count * sizeof(int16_t)) {
+        ESP_LOGW(TAG, "i2s read mismatch: requested %d bytes, got %d bytes", count * sizeof(int16_t), bytes_done);
+        memset(buffer + bytes_done, 0, count * sizeof(int16_t) - bytes_done);
     }
 
-    return bytes_write / sizeof(int16_t);
+    return count;
+}
+
+static uint32_t i2s_write_output_callback(void* arg, int16_t* buffer, uint32_t count)
+{
+    size_t bytes_done = 0;
+
+    esp_err_t ret = i2s_channel_write(tx_handle, buffer, count * sizeof(int16_t), &bytes_done, 0);
+    if (ret != ESP_OK && ret != ESP_ERR_TIMEOUT) {
+        ESP_LOGE(TAG, "i2s write failed");
+        return 0;
+    }
+
+    return bytes_done / sizeof(int16_t);
 }
 
 void reset_callback(void* ref)
@@ -65,7 +81,7 @@ void ipc_main(void)
     if (fpga == NULL)
         return;
 
-    audiodev = audiodev_create(fpga, i2s_write_samples_callback);
+    audiodev = audiodev_create(fpga, i2s_read_input_callback, i2s_write_output_callback);
 
     fpga_set_reset_callback(fpga, reset_callback, audiodev);
 }
