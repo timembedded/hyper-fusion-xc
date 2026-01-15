@@ -274,6 +274,8 @@ set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING ON
 set_global_assignment -name OPTIMIZE_HOLD_TIMING "ALL PATHS"
+set_global_assignment -name VHDL_FILE hdl/psg_wave.vhd
+set_global_assignment -name VHDL_FILE hdl/psg.vhd
 set_global_assignment -name VHDL_FILE ip/pll/MPLL2.vhd
 set_global_assignment -name VHDL_FILE ip/pll/MPLL1.vhd
 set_global_assignment -name VHDL_FILE hdl/common/input_filter.vhd
@@ -302,5 +304,4 @@ set_global_assignment -name VHDL_FILE hdl/ipc/ipc_pkg.vhd
 set_global_assignment -name VHDL_FILE hdl/ipc/spi_ipc.vhd
 set_global_assignment -name VHDL_FILE hdl/ipc/audiodev.vhd
 set_global_assignment -name VHDL_FILE hdl/audio/i2s_decoder.vhd
-set_global_assignment -name VHDL_FILE hdl/keyclick.vhd
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

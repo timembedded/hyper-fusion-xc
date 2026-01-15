@@ -1,8 +1,14 @@
 /*****************************************************************************
 **  MSX Audio Device Emulation
 **
-**    AY8910 - PSG
+**  I2S input from FPGA delivers two streams:
+**    AY8910 - PSG + 1-bit KeyClick (filtering is done here)
+**    SCC
+**  Other chips are implemented in software:
 **    YM2413 - MSX-MUSIC
+**    Y8950  - MSX-AUDIO (with 256kB sample ram)
+**    YMF262 - OPL3 (FM part of Moonsound)
+*     YMF278 - OPL4 (WaveTable part of Moonsound)
 **
 **  Copyright (C) 2025 Tim Brugman
 **
@@ -35,7 +41,6 @@
 #include "bluemsx/Board.h"
 #include "bluemsx/IoPort.h"
 #include "bluemsx/AudioMixer.h"
-#include "bluemsx/AY8910.h"
 #include "bluemsx/YM2413.h"
 #include "bluemsx/MsxAudio.h"
 #include "bluemsx/Moonsound.h"
@@ -53,7 +58,6 @@ struct audiodev_t {
     bool mixer_reset;
     bool use_stereo;
     Mixer *mixer;
-    AY8910 *psg;
     YM_2413 *ym2413;
     MsxAudioHndl msxaudio;
     Moonsound *moonsound;
@@ -132,15 +136,77 @@ static Int32 IRAM_ATTR mixer_write_output_callback(void* arg, Int16* buffer, UIn
     return audiodev->write_output_callback(arg, buffer, count);
 }
 
+#define DEBUG_SAMPLE_LEVEL 0
+
 static Int32* fpga_input_sync(void* ref, Int32 *buffer, UInt32 count) 
 {
+#if DEBUG_SAMPLE_LEVEL
+    static int32_t minsampl = 0;
+    static int32_t maxsampl = 0;
+    bool report = false;
+#endif
     audiodev_handle_t audiodev = (audiodev_handle_t)ref;
 
     audiodev->read_input_callback(audiodev->fpga_handle, audiodev->inputBuffer, count * 2);
 
-    for (UInt32 i = 0; i < count * 2; i++) {
-        buffer[i] = audiodev->inputBuffer[i];
+    for (UInt32 i = 0; i < count * 2; i += 2) {
+        int32_t psg = (uint16_t)audiodev->inputBuffer[i];
+        int32_t scc = audiodev->inputBuffer[i+1];
+
+        // Key Click filter
+        static int32_t prevpsg = 0;
+        static int32_t keyclick = 0;
+        static int32_t keyclick_filt = 0;
+        if ((prevpsg & 0x8000) == 0 && (psg & 0x8000) != 0) {
+            keyclick = 32767;
+        } else if ((prevpsg & 0x8000) != 0 && (psg & 0x8000) == 0) {
+            keyclick = -32768;
+        }else{
+            keyclick = (keyclick * 7) / 8;
+        }
+        keyclick_filt += (keyclick - keyclick_filt) / 4;
+        prevpsg = psg;
+
+        // Perform DC offset filtering on PSG
+        static int32_t psg_level;
+        static int32_t psg_level_prev;
+        psg = (psg & 0x3ff) * 128;
+        psg_level = (0x3fe7 * psg_level / 0x4000) + (psg - psg_level_prev);
+        psg_level_prev = psg;
+
+        // Clip to range
+        psg_level = (psg_level < -32768)? -32768 : ((psg_level > 32767)? 32767 : psg_level);
+
+        // Perform simple 1 pole low pass IIR filtering
+        static int32_t psg_sample;
+        psg_sample += 2 * (psg_level - psg_sample) / 3;
+
+        // Add PSG and key click together
+        psg = psg_sample + keyclick_filt;
+
+#if DEBUG_SAMPLE_LEVEL
+        if (psg < minsampl) {
+            minsampl = psg;
+            report = true;
+        }
+        if (psg > maxsampl) {
+            maxsampl = psg;
+            report = true;
+        }
+#endif
+
+        // Clip to range
+        psg = (psg < -32768)? -32768 : ((psg > 32767)? 32767 : psg);
+
+        // Store samples
+        buffer[i] = psg;
+        buffer[i+1] = scc;
     }
+#if DEBUG_SAMPLE_LEVEL
+    if (report) {
+        ESP_LOGI(TAG, "%d .. %d", minsampl, maxsampl);
+    }
+#endif
     return buffer;
 }
 
@@ -169,10 +235,6 @@ void audiodev_stop(audiodev_handle_t audiodev)
         ym2413Destroy(audiodev->ym2413);
         audiodev->ym2413 = NULL;
     }
-    if (audiodev->psg) {
-        ay8910Destroy(audiodev->psg);
-        audiodev->psg = NULL;
-    }
     if (audiodev->mixer) {
         mixerDestroy(audiodev->mixer);
         audiodev->mixer = NULL;
@@ -197,13 +259,12 @@ void audiodev_start(audiodev_handle_t audiodev)
     audiodev->use_stereo = false;
 
     // Create sound chips
-    audiodev->psg = ay8910Create(audiodev->mixer, AY8910_MSX, PSGTYPE_AY8910);
     audiodev->ym2413 = ym2413Create(audiodev->mixer);
     audiodev->msxaudio = msxaudioCreate(audiodev->mixer);
     audiodev->moonsound = moonsoundCreate(audiodev->mixer, (uint8_t*)moonsound_rom_start, ((uint8_t*)moonsound_rom_end - (uint8_t*)moonsound_rom_start), 1024);
 
     // Connect I2S input from FPGA to mixer
-    mixerRegisterChannel(audiodev->mixer, 0, MIXER_CHANNEL_KEYCLICK, MIXER_CHANNEL_SCC, false, fpga_input_sync, audiodev);
+    mixerRegisterChannel(audiodev->mixer, 0, MIXER_CHANNEL_PSG, MIXER_CHANNEL_SCC, false, fpga_input_sync, audiodev);
 
     // Basic mixer configuration
     mixerSetWriteCallback(audiodev->mixer, mixer_write_output_callback, audiodev);
@@ -211,9 +272,8 @@ void audiodev_start(audiodev_handle_t audiodev)
     mixerEnableMaster(audiodev->mixer, 1);
 
     // Set volumes
-    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_KEYCLICK, 100);
-    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_SCC, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_PSG, 100);
+    mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_SCC, 80);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_DRUM, 100);
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_VOICE, 100);
@@ -222,9 +282,8 @@ void audiodev_start(audiodev_handle_t audiodev)
     mixerSetChannelTypeVolume(audiodev->mixer, MIXER_CHANNEL_YMF278, 100);
 
     // Set panning
-    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_KEYCLICK, 50);
-    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_SCC, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_PSG, 50);
+    mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_SCC, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_DRUM, 50);
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_VOICE, 50);
@@ -233,9 +292,8 @@ void audiodev_start(audiodev_handle_t audiodev)
     mixerSetChannelTypePan(audiodev->mixer, MIXER_CHANNEL_YMF278, 50);
 
     // Enable all channels
-    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_KEYCLICK, 1);
-    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_SCC, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_PSG, 1);
+    mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_SCC, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_VOICE, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXMUSIC_DRUM, 1);
     mixerEnableChannelType(audiodev->mixer, MIXER_CHANNEL_MSXAUDIO_VOICE, 1);

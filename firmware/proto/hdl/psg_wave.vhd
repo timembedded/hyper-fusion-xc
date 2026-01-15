@@ -38,26 +38,20 @@ use ieee.std_logic_unsigned.all;
 
 entity psg_wave is
   port(
-    pSltClk_n  : in std_logic;
-    pSltRst_n   : in std_logic;
---    clkena  : in std_logic;
---    req     : in std_logic;
---    ack     : out std_logic;
---    wrt     : in std_logic;
---    adr     : in std_logic_vector(15 downto 0);
---    dbi     : out std_logic_vector(7 downto 0);
-    PsgRegPtr   : IN std_logic_vector(3 downto 0);
-    pSltDat     : IN std_logic_vector(7 downto 0);    
---    dbo     : in std_logic_vector(7 downto 0);
-    PsgAmp    : out std_logic_vector(9 downto 0); -- fix caro
-    PsgRegWe : in std_logic
+    clock   : in  std_logic;
+    reset   : in  std_logic;
+    clkena  : in  std_logic;
+    wrt     : in  std_logic;
+    adr     : in  std_logic_vector( 1 downto 0 );
+    dbo     : in  std_logic_vector( 7 downto 0 );
+    wave    : out std_logic_vector( 9 downto 0 )
   );
 end psg_wave;
 
 architecture rtl of psg_wave is
 
   signal PsgClkEna   : std_logic_vector(4 downto 0);
---  signal PsgRegPtr   : std_logic_vector(3 downto 0);
+  signal PsgRegPtr   : std_logic_vector(3 downto 0);
 
   signal PsgEdgeChA  : std_logic;
   signal PsgEdgeChB  : std_logic;
@@ -78,6 +72,7 @@ architecture rtl of psg_wave is
   signal PsgVolChC   : std_logic_vector(4 downto 0);
   signal PsgFreqEnv  : std_logic_vector(15 downto 0);
   signal PsgShapeEnv : std_logic_vector(3 downto 0);
+  signal PsgAmp      : std_logic_vector(9 downto 0);
 
   alias hold   : std_logic is PsgShapeEnv(0);
   alias alter  : std_logic is PsgShapeEnv(1);
@@ -85,45 +80,30 @@ architecture rtl of psg_wave is
   alias cont   : std_logic is PsgShapeEnv(3);
 
 begin
+
+  wave <= PsgAmp;
+
   ----------------------------------------------------------------
   -- Miscellaneous control / clock enable (divider)
   ----------------------------------------------------------------
-  process(pSltClk_n, pSltRst_n)
+  process(clock, reset)
   begin
-    if (pSltRst_n = '0') then
+    if (reset = '1') then
       PsgClkEna <= (others => '0');
-    elsif (pSltClk_n'event and pSltClk_n = '1') then
---      if (clkena = '1') then
+    elsif (clock'event and clock = '1') then
+      if (clkena = '1') then
         PsgClkEna <= PsgClkEna - 1;
---      end if;
+      end if;
     end if;
   end process;
---  ack <= req;
-  ----------------------------------------------------------------
-  -- PSG register read
-  ----------------------------------------------------------------
-  --dbi <=          PsgFreqChA( 7 downto 0) when PsgRegPtr = "0000" and adr(1 downto 0) = "10" else
-  --       "0000" & PsgFreqChA(11 downto 8) when PsgRegPtr = "0001" and adr(1 downto 0) = "10" else
-  --                PsgFreqChB( 7 downto 0) when PsgRegPtr = "0010" and adr(1 downto 0) = "10" else
-  --       "0000" & PsgFreqChB(11 downto 8) when PsgRegPtr = "0011" and adr(1 downto 0) = "10" else
-  --                PsgFreqChC( 7 downto 0) when PsgRegPtr = "0100" and adr(1 downto 0) = "10" else
-  --      "0000" & PsgFreqChC(11 downto 8) when PsgRegPtr = "0101" and adr(1 downto 0) = "10" else
-  --       "000"  & PsgFreqNoise            when PsgRegPtr = "0110" and adr(1 downto 0) = "10" else
-  --       "10"   & PsgChanSel              when PsgRegPtr = "0111" and adr(1 downto 0) = "10" else
-  --       "000"  & PsgVolChA               when PsgRegPtr = "1000" and adr(1 downto 0) = "10" else
-  --       "000"  & PsgVolChB               when PsgRegPtr = "1001" and adr(1 downto 0) = "10" else
-  --       "000"  & PsgVolChC               when PsgRegPtr = "1010" and adr(1 downto 0) = "10" else
-  --                PsgFreqEnv(7 downto 0)  when PsgRegPtr = "1011" and adr(1 downto 0) = "10" else
-  --                PsgFreqEnv(15 downto 8) when PsgRegPtr = "1100" and adr(1 downto 0) = "10" else
-  --       "0000" & PsgShapeEnv             when PsgRegPtr = "1101" and adr(1 downto 0) = "10" else
-  --       (others => '1');
+
   ----------------------------------------------------------------
   -- PSG register write
   ----------------------------------------------------------------
-  process(pSltClk_n, pSltRst_n)
+  process(clock, reset)
   begin
-    if (pSltRst_n = '0') then
---      PsgRegPtr    <= (others => '0');
+    if (reset = '1') then
+      PsgRegPtr    <= (others => '0');
       PsgFreqChA   <= (others => '1');
       PsgFreqChB   <= (others => '1');
       PsgFreqChC   <= (others => '1');
@@ -135,28 +115,27 @@ begin
       PsgFreqEnv   <= (others => '1');
       PsgShapeEnv  <= (others => '1');
       PsgEnvReq    <= '0';
-    elsif (pSltClk_n'event and pSltClk_n = '1') then
---      if (req = '1' and wrt = '1' and adr(1 downto 0) = "00") then
---        -- register pointer
---        PsgRegPtr <= dbo(3 downto 0);
---      elsif (req = '1' and wrt = '1' and adr(1 downto 0) = "01") then
+    elsif (clock'event and clock = '1') then
+      if (wrt = '1' and adr = "00") then
+        -- register pointer
+        PsgRegPtr <= dbo(3 downto 0);
+      elsif (wrt = '1' and adr = "01") then
         -- PSG registers
-      if (PsgRegWe = '1') then
         case PsgRegPtr is
-          when "0000" => PsgFreqChA(7 downto 0)  <= pSltDat;
-          when "0001" => PsgFreqChA(11 downto 8) <= pSltDat(3 downto 0);
-          when "0010" => PsgFreqChB(7 downto 0)  <= pSltDat;
-          when "0011" => PsgFreqChB(11 downto 8) <= pSltDat(3 downto 0);
-          when "0100" => PsgFreqChC(7 downto 0)  <= pSltDat;
-          when "0101" => PsgFreqChC(11 downto 8) <= pSltDat(3 downto 0);
-          when "0110" => PsgFreqNoise            <= pSltDat(4 downto 0);
-          when "0111" => PsgChanSel              <= pSltDat(5 downto 0);
-          when "1000" => PsgVolChA               <= pSltDat(4 downto 0);
-          when "1001" => PsgVolChB               <= pSltDat(4 downto 0);
-          when "1010" => PsgVolChC               <= pSltDat(4 downto 0);
-          when "1011" => PsgFreqEnv(7 downto 0)  <= pSltDat;
-          when "1100" => PsgFreqEnv(15 downto 8) <= pSltDat;
-          when "1101" => PsgShapeEnv             <= pSltDat(3 downto 0); PsgEnvReq <= not PsgEnvAck;
+          when "0000" => PsgFreqChA(7 downto 0)  <= dbo;
+          when "0001" => PsgFreqChA(11 downto 8) <= dbo(3 downto 0);
+          when "0010" => PsgFreqChB(7 downto 0)  <= dbo;
+          when "0011" => PsgFreqChB(11 downto 8) <= dbo(3 downto 0);
+          when "0100" => PsgFreqChC(7 downto 0)  <= dbo;
+          when "0101" => PsgFreqChC(11 downto 8) <= dbo(3 downto 0);
+          when "0110" => PsgFreqNoise            <= dbo(4 downto 0);
+          when "0111" => PsgChanSel              <= dbo(5 downto 0);
+          when "1000" => PsgVolChA               <= dbo(4 downto 0);
+          when "1001" => PsgVolChB               <= dbo(4 downto 0);
+          when "1010" => PsgVolChC               <= dbo(4 downto 0);
+          when "1011" => PsgFreqEnv(7 downto 0)  <= dbo;
+          when "1100" => PsgFreqEnv(15 downto 8) <= dbo;
+          when "1101" => PsgShapeEnv             <= dbo(3 downto 0); PsgEnvReq <= not PsgEnvAck;
           when others => null;
         end case;
       end if;
@@ -165,21 +144,21 @@ begin
   ----------------------------------------------------------------
   -- Tone generator
   ----------------------------------------------------------------
-  process(pSltClk_n, pSltRst_n)
+  process(clock, reset)
     variable PsgCntChA : std_logic_vector(11 downto 0);
     variable PsgCntChB : std_logic_vector(11 downto 0);
     variable PsgCntChC : std_logic_vector(11 downto 0);
   begin
-    if (pSltRst_n = '0') then
+    if (reset = '1') then
       PsgEdgeChA <= '0';
       PsgCntChA  := (others => '0');
       PsgEdgeChB <= '0';
       PsgCntChB  := (others => '0');
       PsgEdgeChC <= '0';
       PsgCntChC  := (others => '0');
-    elsif (pSltClk_n'event and pSltClk_n = '1') then
+    elsif (clock'event and clock = '1') then
       -- Base frequency : 112kHz = 3.58MHz / 16 / 2
-      if (PsgClkEna(3 downto 0) = "0000" ) then --and clkena = '1') then
+      if (PsgClkEna(3 downto 0) = "0000" and clkena = '1') then
         if (PsgCntChA /= X"000") then
           PsgCntChA := PsgCntChA - 1;
         elsif (PsgFreqChA /= X"000") then
@@ -213,23 +192,23 @@ begin
   ----------------------------------------------------------------
   -- Noise generator
   ----------------------------------------------------------------
-  process(pSltClk_n, pSltRst_n)
+  process(clock, reset)
 
     variable PsgCntNoise : std_logic_vector(4 downto 0);
     variable PsgGenNoise : std_logic_vector(17 downto 0);
 
   begin
 
-    if (pSltRst_n = '0') then
+    if (reset = '1') then
 
       PsgCntNoise := (others => '0');
       PsgGenNoise := (others => '1');
       PsgNoise    <= '1';
 
-    elsif (pSltClk_n'event and pSltClk_n = '1') then
+    elsif (clock'event and clock = '1') then
 
       -- Base frequency : 112kHz = 3.58MHz / 16 / 2
-      if (PsgClkEna(4 downto 0) = "00000") then
+      if (PsgClkEna(4 downto 0) = "00000" and clkena = '1') then
 
         -- Noise frequency counter
         if (PsgCntNoise /= "00000") then
@@ -264,20 +243,20 @@ begin
   ----------------------------------------------------------------
   -- Envelope generator
   ----------------------------------------------------------------
-  process(pSltClk_n, pSltRst_n)
+  process(clock, reset)
     variable PsgCntEnv : std_logic_vector(15 downto 0);
  --   variable PsgPtrEnv : std_logic_vector(4 downto 0);
     variable PsgPtrEnv : std_logic_vector(5 downto 0);
   begin
-    if (pSltRst_n = '0') then
+    if (reset = '1') then
       PsgCntEnv := (others => '0');
       PsgPtrEnv := (others => '1');
       PsgVolEnv <= (others => '0');
       PsgEnvAck <= '0';
-    elsif (pSltClk_n'event and pSltClk_n = '1') then
+    elsif (clock'event and clock = '1') then
       -- Envelope base frequency : 56kHz = 3.58MHz / 32 / 2
 --      if (PsgClkEna(4 downto 0) = "00000") then -- and clkena = '1') then
-      if (PsgClkEna(3 downto 0) = "0000") then
+      if (PsgClkEna(3 downto 0) = "0000" and clkena = '1') then
         -- Envelope period counter
         if (PsgCntEnv /= X"0000" and PsgEnvReq = PsgEnvAck) then
           PsgCntEnv := PsgCntEnv - 1;
@@ -311,7 +290,7 @@ begin
   ----------------------------------------------------------------
   -- Mixer control
   ----------------------------------------------------------------
-  process(pSltClk_n, pSltRst_n)
+  process(clock, reset)
     variable PsgEnaNoise : std_logic;
     variable PsgEnaTone  : std_logic;
     variable PsgEdge     : std_logic;
@@ -321,10 +300,10 @@ begin
     variable PsgTable    : std_logic_vector(7 downto 0);
     variable PsgMix      : std_logic_vector(9 downto 0);
   begin
-    if (pSltRst_n = '0') then
+    if (reset = '1') then
       PsgMix := (others => '0');
       PsgAmp   <= (others => '0');
-    elsif (pSltClk_n'event and pSltClk_n = '1') then
+    elsif (clock'event and clock = '1') then
       case PsgClkEna(1 downto 0) is
         when "11"   =>
           PsgEnaTone  := PsgChanSel(0); PsgEdge  := PsgEdgeChA;
@@ -399,13 +378,13 @@ begin
         when "00000" => PsgTable := x"00";
         when others => null;
       end case;
---      if (clkena = '1') then
+      if (clkena = '1') then
         case PsgClkEna(1 downto 0) is
           when "00"   => PsgAmp   <= PsgMix(9 downto 0); -- fix caro
                          PsgMix(9 downto 0) := (others => '0');
           when others => PsgMix := "00" & PsgTable + PsgMix;
         end case;
---      end if;
+      end if;
     end if;
   end process;
 end rtl;

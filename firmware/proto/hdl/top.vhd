@@ -127,11 +127,6 @@ end top;
 
 architecture rtl of top is
 
-  -- Constants
-  constant clock_divider_3m58 : integer := 28;  -- 100 MHz / 28 = 3.571 MHz
-  constant LVF                : std_logic_vector(2 downto 0) := "111"; -- Level FM-PAC
-
-
   -- Clock and reset
   signal sysclk     : std_logic;
   signal locked     : std_logic;
@@ -139,7 +134,12 @@ architecture rtl of top is
   signal clken1ms_i : std_logic;
 
   -- Clock divider for 3.58 MHz clock
-  signal clkena_3m58_i  : std_logic;
+  signal clkena_3m58   : std_logic;
+  signal clkena_21m48  : std_logic;
+  signal clockdiv21m48 : unsigned(15 downto 0);
+  signal clockdiv3m58  : unsigned(15 downto 0);
+  signal flankdet21m48 : std_logic;
+  signal flankdet3m58  : std_logic;
 
   -- Avalon memory master
   signal mem_read_i           : std_logic;
@@ -347,7 +347,6 @@ architecture rtl of top is
   signal i2s_lrclk_i                : std_logic;
   signal i2s_din_i                  : std_logic;
   signal i2s_dout_i                 : std_logic;
-  signal audio_strobe_i             : std_logic;
   signal audio_sample_i             : std_logic_vector(15 downto 0);
 
   -- Debug
@@ -413,22 +412,33 @@ begin
   );
 
   --------------------------------------------------------------------
-  -- Clock divider for 3.58 MHz clock
+  -- Clock divider for 21.48 MHz and 3.58 MHz clock
   --------------------------------------------------------------------
 
   clk3m58_i : process(sysclk, reset)
-    variable clock_div_count : integer range 0 to clock_divider_3m58-1;
   begin
-    if (reset = '1') then
-      clock_div_count := 0;
-      clkena_3m58_i <= '0';
-    elsif rising_edge(sysclk) then
-      if (clock_div_count < clock_divider_3m58-1) then
-        clock_div_count := clock_div_count + 1;
-        clkena_3m58_i <= '0';
+    if rising_edge(sysclk) then
+      if (reset = '1') then
+        clkena_3m58 <= '0';
+        clkena_21m48 <= '0';
+        clockdiv21m48 <= (others => '0');
+        clockdiv3m58 <= (others => '0');
       else
-        clock_div_count := 0;
-        clkena_3m58_i <= '1';
+        -- Clock enable for 21.48MHz -> 14075 / 65536 * 100 = 21.4767
+        clkena_21m48 <= '0';
+        clockdiv21m48 <= clockdiv21m48 + to_unsigned(14075, 16);
+        flankdet21m48 <= clockdiv21m48(15);
+        if (flankdet21m48 = '1' and clockdiv21m48(15) = '0') then
+          clkena_21m48 <= '1';
+        end if;
+
+        -- Clock enable for 3.58MHz -> 2346 / 65536 * 100 = 3.5797
+        clkena_3m58 <= '0';
+        clockdiv3m58 <= clockdiv3m58 + to_unsigned(2346, 16);
+        flankdet3m58 <= clockdiv3m58(15);
+        if (flankdet3m58 = '1' and clockdiv3m58(15) = '0') then
+          clkena_3m58 <= '1';
+        end if;
       end if;
     end if;
   end process;
@@ -551,7 +561,7 @@ begin
     -- clock and reset
     clock              => sysclk,
     slot_reset         => slot_reset_i,
-    clkena_3m58        => clkena_3m58_i,
+    clkena_3m58        => clkena_3m58,
 
     -- IRQ
     irq                => slot_irq_i,
@@ -853,7 +863,7 @@ begin
     -- clock and reset
     clock             => sysclk,
     slot_reset        => slot_reset_i,
-    clkena_3m58       => clkena_3m58_i,
+    clkena_3m58       => clkena_3m58,
 
     -- Avalon slave ports
     mes_fmpac_read           => mem_fmpac_read_i,
@@ -882,7 +892,7 @@ begin
     -- clock and reset
     clock                 => sysclk,
     slot_reset            => slot_reset_i,
-    clkena_3m58           => clkena_3m58_i,
+    clkena_3m58           => clkena_3m58,
 
     -- Configuration
     SccEna                => enable_scc_a_i and enable_scc_b_i,
@@ -1018,16 +1028,18 @@ begin
   );
 
   --------------------------------------------------------------------
-  -- 1-bit audio
+  -- PSG + 1-bit keyclick
   --------------------------------------------------------------------
 
-  i_keyclick : entity work.keyclick(rtl)
+  i_psg : entity work.psg(rtl)
   port map
   (
     -- clock and reset
     clock          => sysclk,
     slot_reset     => slot_reset_i,
-    clkena_3m58    => clkena_3m58_i,
+    clkena_21m48   => clkena_21m48,
+    clkena_3m58    => clkena_3m58,
+    clkena_sample  => audio_ack_i,
 
     -- io slave port (write-only)
     ios_write      => iom_esp_write_i,
@@ -1089,7 +1101,7 @@ begin
     audio_tx_ack        => audio_ack_i,
 
     -- Decoded output
-    audio_rx_strobe     => audio_strobe_i,
+    audio_rx_strobe     => open,
     audio_rx_left       => audio_sample_i,
     audio_rx_right      => open
   );
