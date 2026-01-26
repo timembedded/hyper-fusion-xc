@@ -83,8 +83,8 @@ architecture rtl of card_bus_slave is
 
   constant IO_CYCLE_TIME       : integer := 15; -- 150ns, after this time the sniffer samples the data
 
-  constant MAX_MEM_CYCLE_TIME  : integer := 15; -- 150ns, when no data for MEMORY read after this time, the WAIT signal will be asserted
-  constant MAX_IO_CYCLE_TIME   : integer := 30; -- 300ns, when no data for IO read after this time, the WAIT signal will be asserted
+  constant MAX_MEM_CYCLE_TIME  : integer := 12; -- 120ns, when no data for MEMORY read after this time, the WAIT signal will be asserted
+  constant MAX_IO_CYCLE_TIME   : integer := 24; -- 240ns, when no data for IO read after this time, the WAIT signal will be asserted
   constant WAIT_HOLD_TIME      : integer := 2;  -- 20ns, when data arrives when WAIT asserted, keep WAIT active this time
 
   -- State machine
