@@ -21234,12 +21234,6 @@
 		(uuid "40ad07a9-ca25-41df-aaa3-19352c380c1b")
 	)
 	(junction
-		(at 527.05 54.61)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "428ea703-762a-41ff-b7e7-666a5dd89da5")
-	)
-	(junction
 		(at 368.3 181.61)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -21810,6 +21804,12 @@
 		(uuid "c715a803-9bf0-4655-a4d5-d3bf4dc60920")
 	)
 	(junction
+		(at 527.05 54.61)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "c82d161d-8094-48bd-baa3-a33922257552")
+	)
+	(junction
 		(at 226.06 39.37)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -21840,6 +21840,12 @@
 		(uuid "d2142d91-2243-4c71-9eaf-d7223e248e40")
 	)
 	(junction
+		(at 525.78 59.69)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d28d3201-1a7f-4d06-bbd6-668d423a5428")
+	)
+	(junction
 		(at 508 173.99)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -21850,12 +21856,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d9163ddb-d537-4b9d-931f-06e67aaf61db")
-	)
-	(junction
-		(at 525.78 57.15)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "d921e943-4f2a-4a03-a161-6d348a98d4a7")
 	)
 	(junction
 		(at 256.54 157.48)
@@ -22658,6 +22658,16 @@
 			(type default)
 		)
 		(uuid "077298ee-ff83-4198-a5ac-8aaff614e792")
+	)
+	(wire
+		(pts
+			(xy 524.51 59.69) (xy 525.78 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "077e579a-30db-4582-bed7-d80fc2cdd799")
 	)
 	(wire
 		(pts
@@ -23631,7 +23641,7 @@
 	)
 	(wire
 		(pts
-			(xy 514.35 57.15) (xy 525.78 57.15)
+			(xy 502.92 59.69) (xy 514.35 59.69)
 		)
 		(stroke
 			(width 0)
@@ -26111,7 +26121,7 @@
 	)
 	(wire
 		(pts
-			(xy 514.35 54.61) (xy 527.05 54.61)
+			(xy 502.92 54.61) (xy 514.35 54.61)
 		)
 		(stroke
 			(width 0)
@@ -26748,6 +26758,16 @@
 			(type default)
 		)
 		(uuid "6ee77014-55ce-4203-b0d3-b0ef679a818d")
+	)
+	(wire
+		(pts
+			(xy 524.51 54.61) (xy 527.05 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6f80a883-cff9-4769-9cbf-b691c40243c3")
 	)
 	(wire
 		(pts
@@ -30971,6 +30991,16 @@
 	)
 	(wire
 		(pts
+			(xy 525.78 59.69) (xy 525.78 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d952d18f-d828-4cad-aada-6240f5b78834")
+	)
+	(wire
+		(pts
 			(xy 378.46 156.21) (xy 384.81 156.21)
 		)
 		(stroke
@@ -31691,7 +31721,7 @@
 	)
 	(wire
 		(pts
-			(xy 525.78 64.77) (xy 525.78 57.15)
+			(xy 525.78 64.77) (xy 525.78 59.69)
 		)
 		(stroke
 			(width 0)
@@ -32859,7 +32889,7 @@
 		)
 		(uuid "19d17642-50c0-4448-8eea-6826ba1265dd")
 	)
-	(label "ESP_IO12"
+	(label "ESP_IO10"
 		(at 369.57 259.08 0)
 		(effects
 			(font
@@ -32929,7 +32959,7 @@
 		)
 		(uuid "1d6229c0-9282-4bd3-b6a1-205e1f264b8d")
 	)
-	(label "ESP_IO15"
+	(label "ESP_IO11"
 		(at 405.13 259.08 180)
 		(effects
 			(font
@@ -33389,7 +33419,7 @@
 		)
 		(uuid "46b2704b-4602-48fd-829d-5bc98b641d51")
 	)
-	(label "ESP_IO11"
+	(label "ESP_IO12"
 		(at 369.57 256.54 0)
 		(effects
 			(font
@@ -33500,7 +33530,7 @@
 		(uuid "5035fe60-c95b-4330-bded-c92e54d5e4b0")
 	)
 	(label "DBG_Dn"
-		(at 514.35 54.61 0)
+		(at 502.92 54.61 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -33769,7 +33799,7 @@
 		)
 		(uuid "5ff9e8e4-0bef-4ce0-b07d-2d74180a6166")
 	)
-	(label "ESP_IO13"
+	(label "ESP_IO1"
 		(at 405.13 254 180)
 		(effects
 			(font
@@ -34219,7 +34249,7 @@
 		)
 		(uuid "82946941-518e-4578-9258-9ebda667af7c")
 	)
-	(label "ESP_IO16"
+	(label "ESP_IO9"
 		(at 405.13 261.62 180)
 		(effects
 			(font
@@ -34319,7 +34349,7 @@
 		)
 		(uuid "889f8784-4bc1-43f2-b443-3852b8381d03")
 	)
-	(label "ESP_IO9"
+	(label "ESP_IO2"
 		(at 369.57 251.46 0)
 		(effects
 			(font
@@ -35159,7 +35189,7 @@
 		)
 		(uuid "ce3dce4f-a31c-412f-92db-ef189c9a58ee")
 	)
-	(label "ESP_IO10"
+	(label "ESP_IO14"
 		(at 369.57 254 0)
 		(effects
 			(font
@@ -35330,7 +35360,7 @@
 		(uuid "dc845ca8-d38a-4d3d-9052-80eb278272ff")
 	)
 	(label "DBG_Dp"
-		(at 514.35 57.15 0)
+		(at 502.92 59.69 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -35439,7 +35469,7 @@
 		)
 		(uuid "e2285419-48b1-4fd6-a122-d9428d2023f3")
 	)
-	(label "ESP_IO14"
+	(label "ESP_IO13"
 		(at 405.13 256.54 180)
 		(effects
 			(font
@@ -43136,6 +43166,89 @@
 			(project "HyperFusionXC"
 				(path "/dc7b2672-e830-4a16-8d9e-d44ab4cff2d4"
 					(reference "C33")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Filter:Choke_CommonMode_FerriteCore_1243")
+		(at 519.43 57.15 0)
+		(mirror y)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "69b1f6aa-ad2f-4f6f-b473-c1d03e2b4b50")
+		(property "Reference" "FL2"
+			(at 519.938 52.832 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "DLM0NSN900HY2D"
+			(at 515.874 61.976 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Library:FIL_DLM0NSN900HY2D"
+			(at 519.43 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 519.43 65.405 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic common-mode choke, ferrite core, 1243 pin order"
+			(at 515.366 57.912 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "DIGIKEY" "490-DLM0NSN900HY2DCT-ND"
+			(at 519.43 57.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "1b281d47-870e-4e7a-8396-03c4f8797e95")
+		)
+		(pin "4"
+			(uuid "ebc231ef-8aee-45bf-a616-64031ab6612b")
+		)
+		(pin "3"
+			(uuid "508c51ba-dfdb-456a-8941-7cb213f4591a")
+		)
+		(pin "2"
+			(uuid "003c6e3f-ae66-4bc0-8690-2cfc5207d827")
+		)
+		(instances
+			(project "HyperFusionXC"
+				(path "/dc7b2672-e830-4a16-8d9e-d44ab4cff2d4"
+					(reference "FL2")
 					(unit 1)
 				)
 			)
