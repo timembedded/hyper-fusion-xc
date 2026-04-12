@@ -50,7 +50,7 @@
       "conflict_shadows",
       "shapes"
     ],
-    "visible_layers": "00000000_00000000_0ffefff5_ffff5ff5",
+    "visible_layers": "00000000_00000000_0ffefff5_ffff5ff7",
     "zone_display_mode": 0
   },
   "git": {
@@ -98,13 +98,13 @@
       91,
       71,
       91,
-      1504
+      1521
     ],
     "custom_group_rules": [],
     "expanded_rows": [],
     "filter_by_net_name": true,
     "filter_by_netclass": true,
-    "filter_text": "",
+    "filter_text": "lvds",
     "group_by_constraint": false,
     "group_by_netclass": false,
     "show_unconnected_nets": false,
